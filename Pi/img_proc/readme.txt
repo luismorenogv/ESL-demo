@@ -3,3 +3,5 @@
 g++ main_example.cpp img_proc_test.cpp -std=c++11 -o green_tracker     `pkg-config --cflags --libs opencv4 gstreamer-1.0 gstreamer-app-1.0` -lstdc++
 
 ffmpeg -i input.avi -pix_fmt yuyv422 -vcodec rawvideo -an output_yuy2.avi
+
+g++ *.c *.cpp controller/*.c img_proc/*.cpp -lm -std=c++11 -o main     `pkg-config --cflags --libs opencv4 gstreamer-1.0 gstreamer-app-1.0` -lstdc++
