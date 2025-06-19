@@ -25,11 +25,13 @@
 // Forward declaration
 int error(const char *msg, const int e_code, int fd);
 
-void home_both_axes(int spi_fd, int32_t* pitch_offset_out, int32_t* yaw_offset_out) {
+void home_both_axes(int spi_fd, int32_t* pitch_offset_out, int32_t* yaw_offset_out,
+                                uint32_t* pitch_max_steps, uint32_t* yaw_max_steps) {
     printf("Homing both axes simultaneously...\n");
+
+    SendAllPwmCmd(spi_fd, 0, 0, 0, 0, 0, 0); // Stop motors before homing
     
     uint16_t homing_duty = (uint16_t)(0.15 * ((1 << 12) - 1));
-    uint8_t homing_dir = 1; // Move in the negative direction
     
     int32_t current_pitch = 0, current_yaw = 0;
     
@@ -45,59 +47,73 @@ void home_both_axes(int spi_fd, int32_t* pitch_offset_out, int32_t* yaw_offset_o
     bool pitch_homed = false;
     bool yaw_homed = false;
 
-    uint16_t pitch_drive_duty;
-    uint16_t yaw_drive_duty;
+    for (uint8_t i = 0; i < 2; i++){
+        while (!pitch_homed || !yaw_homed) {
+            uint16_t pitch_drive_duty = pitch_homed ? 0 : homing_duty;
+            uint16_t yaw_drive_duty = yaw_homed ? 0 : homing_duty;
+            uint8_t dir = i == 0 ? 1 : 0; // Reverse direction on start
 
-    while (!pitch_homed || !yaw_homed) {
-        pitch_drive_duty = pitch_homed ? 0 : homing_duty;
-        yaw_drive_duty = yaw_homed ? 0 : homing_duty;
+            SendAllPwmCmd(spi_fd, pitch_drive_duty, !pitch_homed, dir, 
+                                yaw_drive_duty, !yaw_homed, dir);
+        
+            if (ReadPositionCmd(spi_fd, UnitAll, &current_pitch, &current_yaw) < 0) {
+                fprintf(stderr, "Homing: Failed to read position, retrying...\n");
+                usleep(10000);
+                continue;
+            }
 
-        SendAllPwmCmd(spi_fd, pitch_drive_duty, !pitch_homed, homing_dir, 
-                              yaw_drive_duty, !yaw_homed, homing_dir);
-    
-        if (ReadPositionCmd(spi_fd, UnitAll, &current_pitch, &current_yaw) < 0) {
-            fprintf(stderr, "Homing: Failed to read position, retrying...\n");
+            if (!pitch_homed) {
+                if (abs(current_pitch - last_pitch) < ENCODER_ERROR_TOLERANCE) {
+                    pitch_stall_counter++;
+                } else {
+                    pitch_stall_counter = 0;
+                }
+                last_pitch = current_pitch;
+
+                if (pitch_stall_counter >= HOMING_STALL_THRESHOLD) {
+                    pitch_homed = true;
+                    if (i == 0){
+                        *pitch_offset_out = current_pitch;
+                    } else {
+                        *pitch_max_steps = abs(current_pitch - *pitch_offset_out);
+                    }
+                    printf("Pitch axis homed at encoder value: %d\n", *pitch_offset_out);
+                }
+            }
+
+            if (!yaw_homed) {
+                if (abs(current_yaw - last_yaw) < ENCODER_ERROR_TOLERANCE) {
+                    yaw_stall_counter++;
+                } else {
+                    yaw_stall_counter = 0;
+                }
+                last_yaw = current_yaw;
+
+                if (yaw_stall_counter >= HOMING_STALL_THRESHOLD) {
+                    yaw_homed = true;
+                    if (i == 0){
+                        *yaw_offset_out = current_yaw;
+                    } else {
+                        *yaw_max_steps = abs(current_yaw - *yaw_offset_out);
+                    }
+                    printf("Yaw axis homed at encoder value: %d\n", *yaw_offset_out);
+                }
+            }
             usleep(10000);
-            continue;
         }
-
-        if (!pitch_homed) {
-            if (abs(current_pitch - last_pitch) < ENCODER_ERROR_TOLERANCE) {
-                pitch_stall_counter++;
-            } else {
-                pitch_stall_counter = 0;
-            }
-            last_pitch = current_pitch;
-
-            if (pitch_stall_counter >= HOMING_STALL_THRESHOLD) {
-                pitch_homed = true;
-                *pitch_offset_out = current_pitch;
-                printf("Pitch axis homed at encoder value: %d\n", *pitch_offset_out);
-            }
-        }
-
-        if (!yaw_homed) {
-            if (abs(current_yaw - last_yaw) < ENCODER_ERROR_TOLERANCE) {
-                yaw_stall_counter++;
-            } else {
-                yaw_stall_counter = 0;
-            }
-            last_yaw = current_yaw;
-
-            if (yaw_stall_counter >= HOMING_STALL_THRESHOLD) {
-                yaw_homed = true;
-                *yaw_offset_out = current_yaw;
-                printf("Yaw axis homed at encoder value: %d\n", *yaw_offset_out);
-            }
-        }
-        usleep(10000);
+        // Reset values
+        yaw_homed = false;
+        pitch_homed = false;
+        pitch_stall_counter = 0;
+        yaw_stall_counter = 0;
     }
     printf("Homing complete for both axes.\n");
+    SendAllPwmCmd(spi_fd, 0, 0, 0, 0, 0, 0); // Stop motors
 }
 
 int main(int argc, char *argv[]) {
     if (argc != 2) {
-        fprintf(stderr, "Usage: %s <pitch_counts> <yaw_counts>\n", argv[0]);
+        fprintf(stderr, "Usage: %s <source_file>\n", argv[0]);
         return 1;
     }
     GstElement *pipeline, *sink;
@@ -105,40 +121,27 @@ int main(int argc, char *argv[]) {
     bool pitch_target_met = false;
     bool yaw_target_met = false;
 
-    // 1) parse targets
-    int32_t pitch_steps_target;// = strtol(argv[1], NULL, 0);
-    int32_t yaw_steps_target;// = strtol(argv[2], NULL, 0);
-
-    // Check for validness against the actual physical range
-    /*if (pitch_steps_target > MAX_PITCH || pitch_steps_target < 0) {
-        fprintf(stderr, "Warning: Pitch target out of range [0, %d]. Clamping.\n", MAX_PITCH);
-        pitch_steps_target = (pitch_steps_target < 0) ? 0 : MAX_PITCH;
-    }
-    if (yaw_steps_target > MAX_YAW || yaw_steps_target < 0) {
-        fprintf(stderr, "Warning: Yaw target out of range [0, %d]. Clamping.\n", MAX_YAW);
-        yaw_steps_target = (yaw_steps_target < 0) ? 0 : MAX_YAW;
-    }*/
+    int32_t pitch_steps_target;
+    int32_t yaw_steps_target;
 
     // pitch and yaw destination
-    XXDouble pitch_ref;// = pitch2rads(pitch_steps_target);
-    XXDouble yaw_ref;//   = yaw2rads(yaw_steps_target);
-    printf("Target: Pitch=%.2f rad (%d steps), Yaw=%.2f rad (%d steps)\n", 
-           pitch_ref, pitch_steps_target, yaw_ref, yaw_steps_target);
+    XXDouble pitch_ref;
+    XXDouble yaw_ref;
 
     // 2) open SPI
     int fd = SpiOpen(SPI_CHANNEL, SPI_SPEED_HZ, SPI_MODE);
     if (fd < 0) return 1;
 
     // 3) Homing procedure
-    SendAllPwmCmd(fd, 0, 0, 0, 0, 0, 0);
-    usleep(100000);
-
     int32_t pitch_offset, yaw_offset;
+    uint32_t pitch_max_steps, yaw_max_steps;
+    home_both_axes(fd, &pitch_offset, &yaw_offset, 
+                   &pitch_max_steps, &yaw_max_steps);
+
+    XXDouble pitch_middle_rad = pitch2rads((int32_t)(pitch_max_steps/2));
+    XXDouble yaw_middle_rad = yaw2rads((int32_t)(yaw_max_steps/2));
+
     double obj_size;
-    home_both_axes(fd, &pitch_offset, &yaw_offset);
-
-    SendAllPwmCmd(fd, 0, 0, 0, 0, 0, 0);
-
     // 4) init your C controller
     ControllerInitialize();
     if (init_gstreamer_pipeline(argv[1], &pipeline, &sink) != 0) return -1;
@@ -153,10 +156,6 @@ int main(int argc, char *argv[]) {
         int32_t abs_p = raw_p - pitch_offset;
         int32_t abs_y = raw_y - yaw_offset;
 
-        printf("Current Position: Pitch=%d steps, Yaw=%d steps\n", abs_p, abs_y);
-        printf("Difference to target: Pitch=%d steps, Yaw=%d steps\n",
-               abs_p - pitch_steps_target, abs_y - yaw_steps_target);
-
         // to radians
         XXDouble pitch_rad = pitch2rads(abs_p);
         XXDouble yaw_rad   = yaw2rads(abs_y);
@@ -166,8 +165,8 @@ int main(int argc, char *argv[]) {
         //Object too small, no real object in sight! (TODO: make it better)
         if(obj_size <= MIN_OBJ_SIZE)
         {
-            yaw_ref = yaw_rad;
-            pitch_ref = pitch_rad;
+            yaw_ref = yaw_middle_rad;// yaw_rad;
+            pitch_ref = pitch_middle_rad;// pitch_rad;
         }
 
         // step the C controller
