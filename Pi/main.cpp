@@ -138,8 +138,10 @@ int main(int argc, char *argv[]) {
     home_both_axes(fd, &pitch_offset, &yaw_offset, 
                    &pitch_max_steps, &yaw_max_steps);
 
-    XXDouble pitch_middle_rad = pitch2rads((int32_t)(pitch_max_steps/2));
-    XXDouble yaw_middle_rad = yaw2rads((int32_t)(yaw_max_steps/2));
+    XXDouble pitch_middle_rad = steps2rads((int32_t)(pitch_max_steps/2), 
+                                            (int32_t)pitch_max_steps);
+    XXDouble yaw_middle_rad = steps2rads((int32_t)(yaw_max_steps/2), 
+                                          (int32_t)yaw_max_steps);
 
     double obj_size;
     // 4) init your C controller
@@ -157,8 +159,8 @@ int main(int argc, char *argv[]) {
         int32_t abs_y = raw_y - yaw_offset;
 
         // to radians
-        XXDouble pitch_rad = pitch2rads(abs_p);
-        XXDouble yaw_rad   = yaw2rads(abs_y);
+        XXDouble pitch_rad = steps2rads(abs_p, (int32_t)pitch_max_steps);
+        XXDouble yaw_rad   = steps2rads(abs_y, (int32_t)yaw_max_steps);
 
         process_one_frame(sink, yaw_ref, pitch_ref, obj_size);
 
