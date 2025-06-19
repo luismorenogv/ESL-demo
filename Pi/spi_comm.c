@@ -22,8 +22,8 @@ static int SpiXfer(int fd, unsigned speed, uint8_t *tx_buf, uint8_t *rx_buf, uns
         .rx_buf        = (unsigned long)rx_buf,
         .len           = count,
         .speed_hz      = speed,
-        .bits_per_word = SPI_BITS_PER_WORD,
         .delay_usecs   = 0,
+        .bits_per_word = SPI_BITS_PER_WORD,
         .cs_change     = 0,
     };
     int err = ioctl(fd, SPI_IOC_MESSAGE(1), &tr);

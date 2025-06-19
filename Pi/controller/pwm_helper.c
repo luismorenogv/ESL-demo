@@ -1,5 +1,6 @@
 #include "pwm_helper.h"
 #include <math.h>
+#include <stdio.h>
 
 #define MAX_DUTY_BITS 16
 
@@ -15,6 +16,7 @@ int PWMinit(uint8_t duty_bits, uint8_t max_duty_pitch, uint8_t max_duty_yaw)
     }
     max_duty_val_pitch = (pow(2, duty_bits)-1)/100*max_duty_pitch;
     max_duty_val_yaw = (pow(2, duty_bits)-1)/100*max_duty_yaw;
+    return 1;
 }
 
 
