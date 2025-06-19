@@ -8,6 +8,10 @@
 #ifndef CONTROLLER_HPP
 #define CONTROLLER_HPP
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "xxtypes.h"
 
 /* GLOBAL FUNCTIONS*/
@@ -17,5 +21,8 @@ void ControllerStep(XXDouble tiltPos, XXDouble tiltDst, XXDouble panPos, XXDoubl
 XXDouble getPanOut(void);
 XXDouble getTiltOut(void);
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif

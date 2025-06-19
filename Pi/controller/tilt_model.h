@@ -18,8 +18,13 @@
    The model itself is the xxmodel.c file
 */
 
+
 #ifndef TILT_MODEL_H
 #define TILT_MODEL_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* Our own include files */
 #include "xxtypes.h"
@@ -77,6 +82,9 @@ void TiltCalculateDynamic (void);
 void TiltCalculateOutput (void);
 void TiltCalculateFinal (void);
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif
 

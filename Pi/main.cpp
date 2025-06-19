@@ -10,6 +10,7 @@
 #include "spi_comm.h"
 #include "controller/controller.h"
 #include "controller/steps2rads.h"
+#include "img_proc/img_proc.hpp"
 
 #define LOOP_HZ         1000
 #define PERIOD_NS       (1000000000L / LOOP_HZ)
@@ -18,6 +19,8 @@
 #define HOMING_STALL_THRESHOLD  50
 #define RAD_TOLERANCE    (0.1)
 #define MAX_SAFE_DUTY  ((uint16_t)(0.2 * ((1 << 12) - 1)))
+
+#define MIN_OBJ_SIZE 150
 
 // Forward declaration
 int error(const char *msg, const int e_code, int fd);
@@ -42,9 +45,12 @@ void home_both_axes(int spi_fd, int32_t* pitch_offset_out, int32_t* yaw_offset_o
     bool pitch_homed = false;
     bool yaw_homed = false;
 
+    uint16_t pitch_drive_duty;
+    uint16_t yaw_drive_duty;
+
     while (!pitch_homed || !yaw_homed) {
-        uint16_t pitch_drive_duty = pitch_homed ? 0 : homing_duty;
-        uint16_t yaw_drive_duty = yaw_homed ? 0 : homing_duty;
+        pitch_drive_duty = pitch_homed ? 0 : homing_duty;
+        yaw_drive_duty = yaw_homed ? 0 : homing_duty;
 
         SendAllPwmCmd(spi_fd, pitch_drive_duty, !pitch_homed, homing_dir, 
                               yaw_drive_duty, !yaw_homed, homing_dir);
@@ -90,31 +96,32 @@ void home_both_axes(int spi_fd, int32_t* pitch_offset_out, int32_t* yaw_offset_o
 }
 
 int main(int argc, char *argv[]) {
-    if (argc != 3) {
+    if (argc != 2) {
         fprintf(stderr, "Usage: %s <pitch_counts> <yaw_counts>\n", argv[0]);
         return 1;
     }
-
+    GstElement *pipeline, *sink;
+    
     bool pitch_target_met = false;
     bool yaw_target_met = false;
 
     // 1) parse targets
-    int32_t pitch_steps_target = strtol(argv[1], NULL, 0);
-    int32_t yaw_steps_target = strtol(argv[2], NULL, 0);
+    int32_t pitch_steps_target;// = strtol(argv[1], NULL, 0);
+    int32_t yaw_steps_target;// = strtol(argv[2], NULL, 0);
 
     // Check for validness against the actual physical range
-    if (pitch_steps_target > MAX_PITCH || pitch_steps_target < 0) {
+    /*if (pitch_steps_target > MAX_PITCH || pitch_steps_target < 0) {
         fprintf(stderr, "Warning: Pitch target out of range [0, %d]. Clamping.\n", MAX_PITCH);
         pitch_steps_target = (pitch_steps_target < 0) ? 0 : MAX_PITCH;
     }
     if (yaw_steps_target > MAX_YAW || yaw_steps_target < 0) {
         fprintf(stderr, "Warning: Yaw target out of range [0, %d]. Clamping.\n", MAX_YAW);
         yaw_steps_target = (yaw_steps_target < 0) ? 0 : MAX_YAW;
-    }
+    }*/
 
-    // convert to radians once
-    const XXDouble pitch_ref = pitch2rads(pitch_steps_target);
-    const XXDouble yaw_ref   = yaw2rads(yaw_steps_target);
+    // pitch and yaw destination
+    XXDouble pitch_ref;// = pitch2rads(pitch_steps_target);
+    XXDouble yaw_ref;//   = yaw2rads(yaw_steps_target);
     printf("Target: Pitch=%.2f rad (%d steps), Yaw=%.2f rad (%d steps)\n", 
            pitch_ref, pitch_steps_target, yaw_ref, yaw_steps_target);
 
@@ -127,12 +134,14 @@ int main(int argc, char *argv[]) {
     usleep(100000);
 
     int32_t pitch_offset, yaw_offset;
+    double obj_size;
     home_both_axes(fd, &pitch_offset, &yaw_offset);
 
     SendAllPwmCmd(fd, 0, 0, 0, 0, 0, 0);
 
     // 4) init your C controller
     ControllerInitialize();
+    if (init_gstreamer_pipeline(argv[1], &pipeline, &sink) != 0) return -1;
 
     // 6) main loop
     while (1) {
@@ -151,6 +160,15 @@ int main(int argc, char *argv[]) {
         // to radians
         XXDouble pitch_rad = pitch2rads(abs_p);
         XXDouble yaw_rad   = yaw2rads(abs_y);
+
+        process_one_frame(sink, yaw_ref, pitch_ref, obj_size);
+
+        //Object too small, no real object in sight! (TODO: make it better)
+        if(obj_size <= MIN_OBJ_SIZE)
+        {
+            yaw_ref = yaw_rad;
+            pitch_ref = pitch_rad;
+        }
 
         // step the C controller
         ControllerStep(pitch_rad, pitch_ref, yaw_rad, yaw_ref);
@@ -194,6 +212,7 @@ int main(int argc, char *argv[]) {
     printf("Stopping motors and closing SPI.\n");
     SendAllPwmCmd(fd, 0,0,0, 0,0,0);
     SpiClose(fd);
+    cleanup_gstreamer_pipeline(pipeline);
     return 0;
 }
 

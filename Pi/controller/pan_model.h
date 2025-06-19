@@ -18,8 +18,13 @@
    The model itself is the xxmodel.c file
 */
 
+
 #ifndef PAN_MODEL_H
 #define PAN_MODEL_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* Our own include files */
 #include "xxtypes.h"
@@ -78,6 +83,9 @@ void PanCalculateDynamic (void);
 void PanCalculateOutput (void);
 void PanCalculateFinal (void);
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif
 

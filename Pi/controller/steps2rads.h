@@ -8,6 +8,10 @@
 #ifndef STEPS2RADS_HPP
 #define STEPS2RADS_HPP
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define MAX_YAW     2454
 #define MAX_PITCH   740
 
@@ -29,5 +33,9 @@ XXDouble yaw2rads(int32_t yaw)
 {
     return steps2rads(yaw, MAX_YAW);
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

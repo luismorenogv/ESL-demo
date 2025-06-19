@@ -1,7 +1,12 @@
 //spi_comm.h
 
+
 #ifndef SPI_COMM_H
 #define SPI_COMM_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #include <stdint.h>
 
@@ -28,5 +33,9 @@ int SendAllPwmCmd(int fd, uint16_t pitch_duty, uint8_t pitch_enable, uint8_t pit
                   uint16_t yaw_duty, uint8_t yaw_enable, uint8_t yaw_dir);
 int ReadPositionCmd(int fd, unit_t unit, int32_t *pitch_pos, int32_t *yaw_pos);
 int CheckPwmStatus(int fd, PwmStatus *pitch_status, PwmStatus *yaw_status);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
