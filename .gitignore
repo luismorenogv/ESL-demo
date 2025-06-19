@@ -1,0 +1,48 @@
+# Global ignores
+*.o
+*.out
+*.log
+*.bin
+*.elf
+*.hex
+*.map
+*.pyc
+*.tmp
+*.bak
+*~
+
+# FPGA build artifacts
+FPGA/*.asc
+FPGA/*.json
+FPGA/*.bin
+
+# Editor/IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*.DS_Store
+Thumbs.db
+
+# Compiled Pi binaries
+Pi/*.out
+Pi/*.exe
+Pi/*.a
+Pi/*.so
+Pi/*.obj
+Pi/*.dSYM/
+Pi/*.log
+
+# Generated intermediate files
+Pi/controller/*.o
+Pi/img_proc/*.o
+
+# CMake or Make build directories (if used)
+build/
+cmake-build*/
+CMakeFiles/
+Makefile
+CMakeCache.txt
+
+# Miscellaneous
+tree.txt
