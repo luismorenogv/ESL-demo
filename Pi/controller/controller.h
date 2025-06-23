@@ -16,7 +16,7 @@ extern "C" {
 
 /* GLOBAL FUNCTIONS*/
 void ControllerInitialize(void);
-void ControllerStep(XXDouble tiltPos, XXDouble tiltDst, XXDouble panPos, XXDouble panDst);
+void ControllerStep(XXDouble tiltPos, XXDouble tiltDst, XXDouble panPos, XXDouble panDst, XXDouble dt);
 
 XXDouble getPanOut(void);
 XXDouble getTiltOut(void);

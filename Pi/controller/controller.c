@@ -36,28 +36,27 @@ void ControllerInitialize(void)
     TiltCalculateInitial();
 }
 
-void ControllerStep(XXDouble tiltPos, XXDouble tiltDst, XXDouble panPos, XXDouble panDst)
+void ControllerStep(XXDouble tiltPos, XXDouble tiltDst, XXDouble panPos, XXDouble panDst, XXDouble dt)
 {
-        //set pan inputs
+    // Update the global step_size variable in each model before calculation
+    pan_step_size = dt;
+    tilt_step_size = dt;
+
     SetPanInputs(panPos, panDst);
+    PanCalculateStatic(); PanCalculateInput(); PanCalculateDynamic();
 
-    //calculate pan dynamic
-    PanCalculateDynamic();
+    for(int i = 0; i < pan_states_size; i++) { pan_s[i] += pan_step_size * pan_R[i]; }
     PanCalculateOutput();
-
-    //read pan output
     ReadPanOutputs();
 
-    //set tilt inputs
     SetTiltInputs(tiltPos, tiltDst, corr);
-
-    //calculate tilt dynamic
-    TiltCalculateDynamic();
+    TiltCalculateStatic(); TiltCalculateInput(); TiltCalculateDynamic();
+    
+    for(int i = 0; i < tilt_states_size; i++) { tilt_s[i] += tilt_step_size * tilt_R[i]; }
     TiltCalculateOutput();
-
-    //read pan output
     ReadTiltOutputs();
 }
+
 
 void SetPanInputs(XXDouble pos, XXDouble dst)
 {

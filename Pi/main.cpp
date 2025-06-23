@@ -12,12 +12,8 @@
 #include "controller/steps2rads.h"
 #include "img_proc/img_proc.hpp"
 
-#define LOOP_HZ         1000
-#define PERIOD_NS       (1000000000L / LOOP_HZ)
-#define DEADBAND_CNT    5
 #define ENCODER_ERROR_TOLERANCE  2
 #define HOMING_STALL_THRESHOLD  50
-#define RAD_TOLERANCE    (0.1)
 #define MAX_SAFE_DUTY  ((uint16_t)(0.2 * ((1 << 12) - 1)))
 
 #define MIN_OBJ_SIZE 150
@@ -74,10 +70,10 @@ void home_both_axes(int spi_fd, int32_t* pitch_offset_out, int32_t* yaw_offset_o
                     pitch_homed = true;
                     if (i == 0){
                         *pitch_offset_out = current_pitch;
+                        printf("Pitch axis homed at encoder value: %d\n", *pitch_offset_out);
                     } else {
                         *pitch_max_steps = abs(current_pitch - *pitch_offset_out);
                     }
-                    printf("Pitch axis homed at encoder value: %d\n", *pitch_offset_out);
                 }
             }
 
@@ -93,10 +89,10 @@ void home_both_axes(int spi_fd, int32_t* pitch_offset_out, int32_t* yaw_offset_o
                     yaw_homed = true;
                     if (i == 0){
                         *yaw_offset_out = current_yaw;
+                        printf("Yaw axis homed at encoder value: %d\n", *yaw_offset_out);
                     } else {
                         *yaw_max_steps = abs(current_yaw - *yaw_offset_out);
                     }
-                    printf("Yaw axis homed at encoder value: %d\n", *yaw_offset_out);
                 }
             }
             usleep(10000);
@@ -117,16 +113,6 @@ int main(int argc, char *argv[]) {
         return 1;
     }
     GstElement *pipeline, *sink;
-    
-    bool pitch_target_met = false;
-    bool yaw_target_met = false;
-
-    int32_t pitch_steps_target;
-    int32_t yaw_steps_target;
-
-    // pitch and yaw destination
-    XXDouble pitch_ref;
-    XXDouble yaw_ref;
 
     // 2) open SPI
     int fd = SpiOpen(SPI_CHANNEL, SPI_SPEED_HZ, SPI_MODE);
@@ -143,13 +129,29 @@ int main(int argc, char *argv[]) {
     XXDouble yaw_middle_rad = steps2rads((int32_t)(yaw_max_steps/2), 
                                           (int32_t)yaw_max_steps);
 
+        // pitch and yaw destination
+    XXDouble pitch_ref = pitch_middle_rad;
+    XXDouble yaw_ref = yaw_middle_rad;
+
     double obj_size;
     // 4) init your C controller
     ControllerInitialize();
     if (init_gstreamer_pipeline(argv[1], &pipeline, &sink) != 0) return -1;
 
+    // 5) Timing setup
+    struct timespec last_time, current_time;
+    clock_gettime(CLOCK_MONOTONIC, &last_time); // Get the starting time
+    XXDouble dt = 0.0;
+
     // 6) main loop
     while (1) {
+        // Timing calculation
+        clock_gettime(CLOCK_MONOTONIC, &current_time);
+        dt = (current_time.tv_sec - last_time.tv_sec) + 
+             (current_time.tv_nsec - last_time.tv_nsec) / 1000000000.0;
+        last_time = current_time;
+
+
         int32_t raw_p, raw_y;
         if (ReadPositionCmd(fd, UnitAll, &raw_p, &raw_y) < 0)
             return error("Failed to read position", 2, fd);
@@ -172,7 +174,7 @@ int main(int argc, char *argv[]) {
         }
 
         // step the C controller
-        ControllerStep(pitch_rad, pitch_ref, yaw_rad, yaw_ref);
+        ControllerStep(pitch_rad, pitch_ref, yaw_rad, yaw_ref, dt);
 
         // read back
         XXDouble pan_out  = getPanOut();  // Corresponds to Yaw
@@ -182,26 +184,14 @@ int main(int argc, char *argv[]) {
                tilt_out, pan_out);
 
         // pack PWM
-        uint16_t pan_duty = yaw_target_met ? 0 : (uint16_t)(fmin(fabs(pan_out),1.0) * MAX_SAFE_DUTY);
+        uint16_t pan_duty = (uint16_t)(fmin(fabs(pan_out),1.0) * MAX_SAFE_DUTY);
         uint8_t  pan_dir  = (pan_out >= 0.0) ? 0 : 1;
-        uint16_t tlt_duty = pitch_target_met ? 0 : (uint16_t)(fmin(fabs(tilt_out),1.0) * MAX_SAFE_DUTY);
+        uint16_t tlt_duty = (uint16_t)(fmin(fabs(tilt_out),1.0) * MAX_SAFE_DUTY);
         uint8_t  tlt_dir  = (tilt_out >= 0.0) ? 0 : 1;
 
         printf("PWM: Pitch=%d (dir=%d), Yaw=%d (dir=%d)\n",
                tlt_duty, tlt_dir, pan_duty, pan_dir);
-
-        // check convergence
-        if (fabs(pitch_ref - pitch_rad) < RAD_TOLERANCE){
-            pitch_target_met = true;
-        }
-        if (fabs(yaw_ref   - yaw_rad) < RAD_TOLERANCE) {
-            yaw_target_met = true;
-        }
-
-        if (pitch_target_met && yaw_target_met) {
-            printf("Both targets met. Exiting loop.\n");
-            break;
-        }
+            
         // send PWM
         SendAllPwmCmd(fd,
                       tlt_duty, /*en=*/1, tlt_dir,  // Pitch (Tilt)
