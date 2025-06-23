@@ -43,14 +43,16 @@ void ControllerStep(XXDouble tiltPos, XXDouble tiltDst, XXDouble panPos, XXDoubl
     tilt_step_size = dt;
 
     SetPanInputs(panPos, panDst);
-    PanCalculateStatic(); PanCalculateInput(); PanCalculateDynamic();
+    // PanCalculateStatic(); PanCalculateInput(); empty
+    PanCalculateDynamic();
 
     for(int i = 0; i < pan_states_size; i++) { pan_s[i] += pan_step_size * pan_R[i]; }
     PanCalculateOutput();
     ReadPanOutputs();
 
     SetTiltInputs(tiltPos, tiltDst, corr);
-    TiltCalculateStatic(); TiltCalculateInput(); TiltCalculateDynamic();
+    // TiltCalculateStatic(); TiltCalculateInput(); empty
+    TiltCalculateDynamic();
     
     for(int i = 0; i < tilt_states_size; i++) { tilt_s[i] += tilt_step_size * tilt_R[i]; }
     TiltCalculateOutput();
