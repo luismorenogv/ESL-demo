@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include <math.h>
 #include <time.h>
-#include <stdbool.h> // Include for bool type
+#include <stdbool.h>
 
 #include "spi_comm.h"
 #include "controller/controller.h"

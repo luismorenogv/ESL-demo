@@ -15,12 +15,12 @@ module TopEntity #(
     // Encoders & PWM signals
     input  wire         PITCH_ENC_A,
     input  wire         PITCH_ENC_B,
-    output  wire         PITCH_DIRA,     // will be driven by PWM below
+    output  wire         PITCH_DIRA,
     output  wire         PITCH_DIRB,
     output wire         PITCH_PWM_VAL,
     input  wire         YAW_ENC_A,
     input  wire         YAW_ENC_B,
-    output  wire         YAW_DIRA,       // will be driven
+    output  wire         YAW_DIRA,
     output  wire         YAW_DIRB,
     output wire         YAW_PWM_VAL,
     output reg          led1 = 1'b0,
@@ -28,9 +28,7 @@ module TopEntity #(
     output reg          led3 = 1'b0
   );
 
-  //─────────────────────────────────────────────────────────────────────────
-  // 1) Instantiate Encoders and PWM
-  //─────────────────────────────────────────────────────────────────────────
+  // Instantiate Encoders and PWM
   wire [1:0] dir_pitch, dir_yaw;
   wire signed [31:0] position_pitch, position_yaw;
 
@@ -76,10 +74,9 @@ module TopEntity #(
     .pwm_out(YAW_PWM_VAL)
   );
 
-  //─────────────────────────────────────────────────────────────────────────
-  // 2) SPI Slave Mechanism (single‐CS reads) – unified into one block
-  //─────────────────────────────────────────────────────────────────────────
-  // a) edge detectors
+  // SPI Slave Mechanism
+
+  // edge detectors
   reg [2:0] SPI_CLKr, SPI_CSr;
   always @(posedge clk) begin
     SPI_CLKr <= {SPI_CLKr[1:0], SPI_CLK};
@@ -91,7 +88,7 @@ module TopEntity #(
   wire SPI_CS_startmessage = (SPI_CSr[2:1] == 2'b10);
   wire SPI_CS_endmessage   = (SPI_CSr[2:1] == 2'b01);
 
-  // b) synchronize MOSI
+  // synchronize MOSI to avoid metastability
   reg [1:0] SPI_PICOr;
   always @(posedge clk)
     SPI_PICOr <= {SPI_PICOr[0], SPI_PICO};
@@ -108,6 +105,7 @@ module TopEntity #(
 
   // unified SPI handling
   always @(posedge clk) begin
+
     // end‐of‐transaction: handle writes
     if (SPI_CS_endmessage) begin
       case (rx_buf[0])
@@ -143,12 +141,12 @@ module TopEntity #(
       rx_shift  <= 8'h00;
       tx_shift  <= 8'h00;
     end else begin
-      // Clear LEDs at start of a new transaction
+      // Start of a new transaction
       if (SPI_CS_startmessage) begin
         tx_buf[0] <= 8'h01; // send dummy byte first
       end
 
-      // SHIFT IN on rising edge
+      // SHIFT IN rx_shift on rising edge
       if (SPI_CLK_risingedge) begin
         bit_cnt  <= bit_cnt + 1;
         rx_shift <= {rx_shift[6:0], SPI_PICO_data};
@@ -158,7 +156,7 @@ module TopEntity #(
           rx_buf[byte_cnt] <= {rx_shift[6:0], SPI_PICO_data};
           byte_cnt         <= byte_cnt + 1;
 
-          // decode first byte immediately
+          // decode first byte immediately for read commands
           if (byte_cnt == 4'h0) begin
             case ({rx_shift[6:0], SPI_PICO_data})
               8'h20: begin
@@ -201,7 +199,7 @@ module TopEntity #(
         end
       end
 
-      // SHIFT OUT on falling edge
+      // SHIFT OUT tx_shift on falling edge
       if (SPI_CLK_fallingedge) begin
         if (bit_cnt == 3'b000)
           tx_shift <= tx_buf[byte_cnt];
@@ -211,9 +209,7 @@ module TopEntity #(
     end
   end
 
-  //─────────────────────────────────────────────────────────────────────────
   // 3) led3: 1 Hz blink to show core is alive
-  //─────────────────────────────────────────────────────────────────────────
   reg [31:0] led3_counter = 32'd0;
   always @(posedge clk) begin
     if (btn1) begin
