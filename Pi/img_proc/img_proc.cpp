@@ -83,8 +83,6 @@ void computeAngles(int x_actual, int y_actual, int width, int height, double& x_
 bool process_one_frame(GstElement* appsink, double& x_offset_rad, double& y_offset_rad, double& obj_size) {
     GstSample* sample = gst_app_sink_try_pull_sample(GST_APP_SINK(appsink),  0 /*GST_SECOND / 10*/);  // non-blocking
     int width, height;
-    gst_structure_get_int(s, "width", &width);
-    gst_structure_get_int(s, "height", &height);
     static double old_x_offset_rad = 0;
     static double old_y_offset_rad = 0;
     static double old_obj_size = 0;
@@ -94,10 +92,13 @@ bool process_one_frame(GstElement* appsink, double& x_offset_rad, double& y_offs
         obj_size     = old_obj_size;
         return false;
     }
+    
+    gst_structure_get_int(s, "width", &width);
+    gst_structure_get_int(s, "height", &height);
+    
     GstBuffer* buffer = gst_sample_get_buffer(sample);
     GstCaps* caps = gst_sample_get_caps(sample);
     GstStructure* s = gst_caps_get_structure(caps, 0);
-
 
     GstMapInfo map;
     if (!gst_buffer_map(buffer, &map, GST_MAP_READ)) {
