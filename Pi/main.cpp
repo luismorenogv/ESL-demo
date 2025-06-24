@@ -18,9 +18,9 @@
 #define ENCODER_ERROR_TOLERANCE  2
 #define HOMING_STALL_THRESHOLD  50
 #define RAD_TOLERANCE    (0.1)
-#define MAX_SAFE_DUTY  ((uint16_t)(0.2 * ((1 << 12) - 1)))
+#define MAX_SAFE_DUTY  ((uint16_t)(0.1 * ((1 << 12) - 1)))
 
-#define MIN_OBJ_SIZE 1500
+#define MIN_OBJ_SIZE 2000
 
 // Forward declaration
 int error(const char *msg, const int e_code, int fd);
@@ -147,9 +147,21 @@ int main(int argc, char *argv[]) {
     // 4) init your C controller
     ControllerInitialize();
     if (init_gstreamer_pipeline(argv[1], &pipeline, &sink) != 0) return -1;
+    
+    // 5) Timing setup
+    struct timespec last_time, current_time;
+    clock_gettime(CLOCK_MONOTONIC, &last_time); // Get the starting time
+    XXDouble dt = 0.0;
 
     // 6) main loop
     while (1) {
+        // Timing calculation
+        clock_gettime(CLOCK_MONOTONIC, &current_time);
+        dt = (current_time.tv_sec - last_time.tv_sec) + 
+             (current_time.tv_nsec - last_time.tv_nsec) / 1000000000.0;
+        last_time = current_time;
+
+        // printf("Loop time: %.3f seconds\n", dt);
         int32_t raw_p, raw_y;
         if (ReadPositionCmd(fd, UnitAll, &raw_p, &raw_y) < 0)
             return error("Failed to read position", 2, fd);
@@ -163,12 +175,14 @@ int main(int argc, char *argv[]) {
         XXDouble yaw_rad   = steps2rads(abs_y, (int32_t)yaw_max_steps);
 
         process_one_frame(sink, yaw_ref, pitch_ref, obj_size);
-
+        /*TRY*/
+        yaw_ref += yaw_rad;
+        pitch_ref += pitch_rad;
         //Object too small, no real object in sight! (TODO: make it better)
         if(obj_size <= MIN_OBJ_SIZE)
         {
-            yaw_ref = yaw_middle_rad;// yaw_rad;
-            pitch_ref = pitch_middle_rad;// pitch_rad;
+            yaw_ref = /*yaw_middle_rad;*/yaw_rad;
+            pitch_ref = /*pitch_middle_rad;*/pitch_rad;
         }
 
         // step the C controller
@@ -177,7 +191,7 @@ int main(int argc, char *argv[]) {
         // read back
         XXDouble pan_out  = getPanOut();  // Corresponds to Yaw
         XXDouble tilt_out = getTiltOut(); // Corresponds to Pitch
-
+        // printf("Tilt Out: %.2f", tilt_out);
         // printf("Controller Output: Pitch=%.2f rad, Yaw=%.2f rad\n", tilt_out, pan_out);
 
         // pack PWM

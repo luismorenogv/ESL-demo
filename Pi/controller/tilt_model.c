@@ -34,6 +34,7 @@
 
 /* system include files */
 #include <stdlib.h>
+#include <stdio.h>
 #include <math.h>
 #include <string.h>
 
@@ -203,6 +204,7 @@ void TiltCalculateDynamic (void)
 
 	/* corrGain\output = corrGain\K * corrGain\input; */
 	tilt_V[1] = tilt_P[0] * tilt_V[0];
+	//printf{"out: %.2f", tilt_V[1]};
 
 	/* PID1\error = PlusMinus2\plus1 - PlusMinus2\minus1; */
 	tilt_R[1] = tilt_V[5] - tilt_V[6];

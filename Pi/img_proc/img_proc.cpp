@@ -93,14 +93,14 @@ bool process_one_frame(GstElement* appsink, double& x_offset_rad, double& y_offs
         return false;
     }
     
-    gst_structure_get_int(s, "width", &width);
-    gst_structure_get_int(s, "height", &height);
     
     GstBuffer* buffer = gst_sample_get_buffer(sample);
     GstCaps* caps = gst_sample_get_caps(sample);
     GstStructure* s = gst_caps_get_structure(caps, 0);
-
     GstMapInfo map;
+    gst_structure_get_int(s, "width", &width);
+    gst_structure_get_int(s, "height", &height);
+    
     if (!gst_buffer_map(buffer, &map, GST_MAP_READ)) {
         gst_sample_unref(sample);
         return false;
@@ -151,9 +151,9 @@ bool process_one_frame(GstElement* appsink, double& x_offset_rad, double& y_offs
     }
 
     obj_size = max_area;
-    printf("Object size: %.2f, Center: (%d, %d)\n", obj_size, bBoxCenterX, bBoxCenterY);
+    //printf("Object size: %.2f, Center: (%d, %d)\n", obj_size, bBoxCenterX, bBoxCenterY);
     computeAngles(bBoxCenterX, bBoxCenterY, width, height, x_offset_rad, y_offset_rad);
-
+    //if(obj_size > 2000) printf("y_offset: %.2f\n", x_offset_rad, y_offset_rad);
     gst_buffer_unmap(buffer, &map);
     gst_sample_unref(sample);
 

@@ -10,6 +10,11 @@
 #include "controller.h"
 #include "pan_model.h"
 #include "tilt_model.h"
+#include <math.h>
+#include <stdio.h>
+
+#define TILT_CONVERGENCE 0.06
+#define PAN_CONVERGENCE 0.15
 
 /* EXTERN VARIABLES */
 extern XXDouble pan_V[];
@@ -38,6 +43,11 @@ void ControllerInitialize(void)
 
 void ControllerStep(XXDouble tiltPos, XXDouble tiltDst, XXDouble panPos, XXDouble panDst)
 {
+    printf("tilt Error: %.2f\n", tiltPos - tiltDst);
+    //printf("pan Error: %.2f\n", panPos - panDst);
+    // tiltDst = tiltPos;
+    if(fabs(tiltPos - tiltDst) < TILT_CONVERGENCE) tiltDst = tiltPos;
+    if(fabs(panPos - panDst) < PAN_CONVERGENCE) panDst = panPos;
         //set pan inputs
     SetPanInputs(panPos, panDst);
 
