@@ -20,7 +20,7 @@
 #define RAD_TOLERANCE    (0.1)
 #define MAX_SAFE_DUTY  ((uint16_t)(0.2 * ((1 << 12) - 1)))
 
-#define MIN_OBJ_SIZE 150
+#define MIN_OBJ_SIZE 1500
 
 // Forward declaration
 int error(const char *msg, const int e_code, int fd);
@@ -74,10 +74,10 @@ void home_both_axes(int spi_fd, int32_t* pitch_offset_out, int32_t* yaw_offset_o
                     pitch_homed = true;
                     if (i == 0){
                         *pitch_offset_out = current_pitch;
+                        printf("Pitch axis homed at encoder value: %d\n", *pitch_offset_out);
                     } else {
                         *pitch_max_steps = abs(current_pitch - *pitch_offset_out);
                     }
-                    printf("Pitch axis homed at encoder value: %d\n", *pitch_offset_out);
                 }
             }
 
@@ -93,10 +93,10 @@ void home_both_axes(int spi_fd, int32_t* pitch_offset_out, int32_t* yaw_offset_o
                     yaw_homed = true;
                     if (i == 0){
                         *yaw_offset_out = current_yaw;
+                        printf("Yaw axis homed at encoder value: %d\n", *yaw_offset_out);
                     } else {
                         *yaw_max_steps = abs(current_yaw - *yaw_offset_out);
                     }
-                    printf("Yaw axis homed at encoder value: %d\n", *yaw_offset_out);
                 }
             }
             usleep(10000);
@@ -178,25 +178,16 @@ int main(int argc, char *argv[]) {
         XXDouble pan_out  = getPanOut();  // Corresponds to Yaw
         XXDouble tilt_out = getTiltOut(); // Corresponds to Pitch
 
-        printf("Controller Output: Pitch=%.2f rad, Yaw=%.2f rad\n",
-               tilt_out, pan_out);
+        // printf("Controller Output: Pitch=%.2f rad, Yaw=%.2f rad\n", tilt_out, pan_out);
 
         // pack PWM
-        uint16_t pan_duty = yaw_target_met ? 0 : (uint16_t)(fmin(fabs(pan_out),1.0) * MAX_SAFE_DUTY);
+        uint16_t pan_duty = (uint16_t)(fmin(fabs(pan_out),1.0) * MAX_SAFE_DUTY);
         uint8_t  pan_dir  = (pan_out >= 0.0) ? 0 : 1;
-        uint16_t tlt_duty = pitch_target_met ? 0 : (uint16_t)(fmin(fabs(tilt_out),1.0) * MAX_SAFE_DUTY);
+        uint16_t tlt_duty = (uint16_t)(fmin(fabs(tilt_out),1.0) * MAX_SAFE_DUTY);
         uint8_t  tlt_dir  = (tilt_out >= 0.0) ? 0 : 1;
 
-        printf("PWM: Pitch=%d (dir=%d), Yaw=%d (dir=%d)\n",
-               tlt_duty, tlt_dir, pan_duty, pan_dir);
+        // printf("PWM: Pitch=%d (dir=%d), Yaw=%d (dir=%d)\n", tlt_duty, tlt_dir, pan_duty, pan_dir);
 
-        // check convergence
-        if (fabs(pitch_ref - pitch_rad) < RAD_TOLERANCE){
-            pitch_target_met = true;
-        }
-        if (fabs(yaw_ref   - yaw_rad) < RAD_TOLERANCE) {
-            yaw_target_met = true;
-        }
 
         if (pitch_target_met && yaw_target_met) {
             printf("Both targets met. Exiting loop.\n");

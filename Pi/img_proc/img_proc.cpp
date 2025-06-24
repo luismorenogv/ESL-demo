@@ -81,7 +81,7 @@ void computeAngles(int x_actual, int y_actual, int width, int height, double& x_
 }
 
 bool process_one_frame(GstElement* appsink, double& x_offset_rad, double& y_offset_rad, double& obj_size) {
-    GstSample* sample = gst_app_sink_try_pull_sample(GST_APP_SINK(appsink), GST_SECOND / 10);  // non-blocking
+    GstSample* sample = gst_app_sink_try_pull_sample(GST_APP_SINK(appsink),  0 /*GST_SECOND / 10*/);  // non-blocking
     if (!sample) return false;
 
     GstBuffer* buffer = gst_sample_get_buffer(sample);
@@ -143,6 +143,7 @@ bool process_one_frame(GstElement* appsink, double& x_offset_rad, double& y_offs
     }
 
     obj_size = max_area;
+    printf("Object size: %.2f, Center: (%d, %d)\n", obj_size, bBoxCenterX, bBoxCenterY);
     computeAngles(bBoxCenterX, bBoxCenterY, width, height, x_offset_rad, y_offset_rad);
 
     gst_buffer_unmap(buffer, &map);
