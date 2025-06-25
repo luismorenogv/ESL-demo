@@ -4,8 +4,8 @@
  *  file:  xxmodel.c
  *  model: Jiwy-1
  *  expmt: Jiwy-1
- *  date:  June 10, 2025
- *  time:  12:06:37 AM
+ *  date:  June 25, 2025
+ *  time:  12:22:27 PM
  *  user:  Vakgroep RaM
  *  from:  -
  *  build: 5.1.4.13773
@@ -18,14 +18,14 @@
    are used in the model for speed. The user may also include
    the alias variables by adding them to the end of the array:
 
-   XXDouble xx_variables[NUMBER_VARIABLES + NUMBER_ALIAS_VARIABLES + 1];
-   XXString xx_variable_names[] = {
+   TiltDouble tilt_variables[NUMBER_VARIABLES + NUMBER_ALIAS_VARIABLES + 1];
+   TiltString tilt_variable_names[] = {
      VARIABLE_NAMES, ALIAS_VARIABLE_NAMES, NULL
    };
 
    and calculate them directly after the output equations:
 
-   void XXCalculateOutput (void)
+   void TiltCalculateOutput (void)
    {
      OUTPUT_EQUATIONS
      ALIAS_EQUATIONS
@@ -34,33 +34,33 @@
 
 /* system include files */
 #include <stdlib.h>
-#include <stdio.h>
 #include <math.h>
 #include <string.h>
 
 /* 20-sim include files */
-#include "tilt_model.h"
+#include "tilt_xxmodel.h"
+#include "xxfuncs.h"
 
 /* the global variables */
-XXDouble tilt_start_time = 0.0;
-XXDouble tilt_finish_time = 20.0;
-XXDouble tilt_step_size = 0.01;
-XXDouble tilt_time = 0.0;
-XXInteger tilt_steps = 0;
-XXBoolean tilt_initialize = XXTRUE;
-XXBoolean tilt_major = XXTRUE;
-XXBoolean tilt_stop_simulation = XXFALSE;
+TiltDouble tilt_start_time = 0.0;
+TiltDouble tilt_finish_time = 30.0;
+TiltDouble tilt_step_size = 0.01;
+TiltDouble tilt_time = 0.0;
+TiltInteger tilt_steps = 0;
+TiltBoolean tilt_initialize = TiltTRUE;
+TiltBoolean tilt_major = TiltTRUE;
+TiltBoolean tilt_stop_simulation = TiltFALSE;
 
 /* the variable arrays */
-XXDouble tilt_P[tilt_parameters_size];		/* parameters */
-XXDouble tilt_I[tilt_initialvalues_size];		/* initial values */
-XXDouble tilt_V[tilt_variables_size];		/* variables */
-XXDouble tilt_s[tilt_states_size];		/* states */
-XXDouble tilt_R[tilt_states_size];		/* rates (or new states) */
+TiltDouble tilt_P[tilt_parameters_size];		/* parameters */
+TiltDouble tilt_I[tilt_initialvalues_size];		/* initial values */
+TiltDouble tilt_V[tilt_variables_size];		/* variables */
+TiltDouble tilt_s[tilt_states_size];		/* states */
+TiltDouble tilt_R[tilt_states_size];		/* rates (or new states) */
 
 /* the names of the variables as used in the arrays above
    uncomment this part if these names are needed
-XXString xx_parameter_names[] = {
+TiltString tilt_parameter_names[] = {
 	"corrGain\\K",
 	"PID1\\kp",
 	"PID1\\tauD",
@@ -70,13 +70,13 @@ XXString xx_parameter_names[] = {
 	"SignalLimiter2\\maximum"
 ,	NULL
 };
-XXString xx_initial_value_names[] = {
+TiltString tilt_initial_value_names[] = {
 	"PID1\\uD_previous_initial",
 	"PID1\\error_previous_initial",
 	"PID1\\uI_previous_initial"
 ,	NULL
 };
-XXString xx_variable_names[] = {
+TiltString tilt_variable_names[] = {
 	"corrGain\\input",
 	"corrGain\\output",
 	"PID1\\output",
@@ -91,13 +91,13 @@ XXString xx_variable_names[] = {
 	"out"
 ,	NULL
 };
-XXString xx_state_names[] = {
+TiltString tilt_state_names[] = {
 	"PID1\\uD_previous",
 	"PID1\\error_previous",
 	"PID1\\uI_previous"
 ,	NULL
 };
-XXString xx_rate_names[] = {
+TiltString tilt_rate_names[] = {
 	"",
 	"PID1\\error",
 	""
@@ -112,13 +112,12 @@ void TiltModelInitialize_parameters(void)
 {
 	/* set the parameters */
 	tilt_P[0] = 0.0;		/* corrGain\K */
-	tilt_P[1] = 1.6;		/* PID1\kp */
-	tilt_P[2] = 0.05;		/* PID1\tauD */
-	tilt_P[3] = 0.001;		/* PID1\beta */
-	tilt_P[4] = 10.5;		/* PID1\tauI */
+	tilt_P[1] = 0.4;		/* PID1\kp  */
+	tilt_P[2] = 0.5;	    /* PID1\tauD*/
+	tilt_P[3] = 0.5;		/* PID1\beta */
+	tilt_P[4] = 0.1;	    /* PID1\tauIm */
 	tilt_P[5] = -0.99;		/* SignalLimiter2\minimum */
 	tilt_P[6] = 0.99;		/* SignalLimiter2\maximum */
-
 }
 #if (7 > 8192) && defined _MSC_VER
 #pragma optimize("", on)
@@ -145,7 +144,7 @@ void TiltModelInitialize_states(void)
 void TiltModelInitialize_variables(void)
 {
 	/* initialize the variable memory to zero */
-	memset(tilt_V, 0, tilt_variables_size * sizeof(XXDouble));
+	memset(tilt_V, 0, tilt_variables_size * sizeof(TiltDouble));
 }
 
 /* this method is called before calculation is possible */
@@ -204,7 +203,6 @@ void TiltCalculateDynamic (void)
 
 	/* corrGain\output = corrGain\K * corrGain\input; */
 	tilt_V[1] = tilt_P[0] * tilt_V[0];
-	//printf{"out: %.2f", tilt_V[1]};
 
 	/* PID1\error = PlusMinus2\plus1 - PlusMinus2\minus1; */
 	tilt_R[1] = tilt_V[5] - tilt_V[6];

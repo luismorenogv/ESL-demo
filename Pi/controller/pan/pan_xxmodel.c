@@ -4,8 +4,8 @@
  *  file:  xxmodel.c
  *  model: Jiwy-1
  *  expmt: Jiwy-1
- *  date:  June 9, 2025
- *  time:  11:18:49 PM
+ *  date:  June 25, 2025
+ *  time:  12:21:48 PM
  *  user:  Vakgroep RaM
  *  from:  -
  *  build: 5.1.4.13773
@@ -18,14 +18,14 @@
    are used in the model for speed. The user may also include
    the alias variables by adding them to the end of the array:
 
-   XXDouble xx_variables[NUMBER_VARIABLES + NUMBER_ALIAS_VARIABLES + 1];
-   XXString xx_variable_names[] = {
+   PanDouble pan_variables[NUMBER_VARIABLES + NUMBER_ALIAS_VARIABLES + 1];
+   PanString pan_variable_names[] = {
      VARIABLE_NAMES, ALIAS_VARIABLE_NAMES, NULL
    };
 
    and calculate them directly after the output equations:
 
-   void XXCalculateOutput (void)
+   void PanCalculateOutput (void)
    {
      OUTPUT_EQUATIONS
      ALIAS_EQUATIONS
@@ -38,28 +38,29 @@
 #include <string.h>
 
 /* 20-sim include files */
-#include "pan_model.h"
+#include "pan_xxmodel.h"
+#include "xxfuncs.h"
 
 /* the global variables */
-XXDouble pan_start_time = 0.0;
-XXDouble pan_finish_time = 20.0;
-XXDouble pan_step_size = 0.01;
-XXDouble pan_time = 0.0;
-XXInteger pan_steps = 0;
-XXBoolean pan_initialize = XXTRUE;
-XXBoolean pan_major = XXTRUE;
-XXBoolean pan_stop_simulation = XXFALSE;
+PanDouble pan_start_time = 0.0;
+PanDouble pan_finish_time = 30.0;
+PanDouble pan_step_size = 0.01;
+PanDouble pan_time = 0.0;
+PanInteger pan_steps = 0;
+PanBoolean pan_initialize = PanTRUE;
+PanBoolean pan_major = PanTRUE;
+PanBoolean pan_stop_simulation = PanFALSE;
 
 /* the variable arrays */
-XXDouble pan_P[pan_parameters_size];		/* parameters */
-XXDouble pan_I[pan_initialvalues_size];		/* initial values */
-XXDouble pan_V[pan_variables_size];		/* variables */
-XXDouble pan_s[pan_states_size];		/* states */
-XXDouble pan_R[pan_states_size];		/* rates (or new states) */
+PanDouble pan_P[pan_parameters_size];		/* parameters */
+PanDouble pan_I[pan_initialvalues_size];		/* initial values */
+PanDouble pan_V[pan_variables_size];		/* variables */
+PanDouble pan_s[pan_states_size];		/* states */
+PanDouble pan_R[pan_states_size];		/* rates (or new states) */
 
 /* the names of the variables as used in the arrays above
    uncomment this part if these names are needed
-XXString xx_parameter_names[] = {
+PanString pan_parameter_names[] = {
 	"corrGain\\K",
 	"PID1\\kp",
 	"PID1\\tauD",
@@ -69,13 +70,13 @@ XXString xx_parameter_names[] = {
 	"SignalLimiter2\\maximum"
 ,	NULL
 };
-XXString xx_initial_value_names[] = {
+PanString pan_initial_value_names[] = {
 	"PID1\\uD_previous_initial",
 	"PID1\\error_previous_initial",
 	"PID1\\uI_previous_initial"
 ,	NULL
 };
-XXString xx_variable_names[] = {
+PanString pan_variable_names[] = {
 	"corrGain\\corr",
 	"PID1\\output",
 	"",
@@ -88,13 +89,13 @@ XXString xx_variable_names[] = {
 	"out"
 ,	NULL
 };
-XXString xx_state_names[] = {
+PanString pan_state_names[] = {
 	"PID1\\uD_previous",
 	"PID1\\error_previous",
 	"PID1\\uI_previous"
 ,	NULL
 };
-XXString xx_rate_names[] = {
+PanString pan_rate_names[] = {
 	"",
 	"PID1\\error",
 	""
@@ -107,15 +108,15 @@ XXString xx_rate_names[] = {
 #endif
 void PanModelInitialize_parameters(void)
 {
-	/* set the parameters */
-	pan_P[0] = 0.0;		/* corrGain\K */
-	pan_P[1] = 2.6;		/* PID1\kp */
-	pan_P[2] = 0.05;		/* PID1\tauD */
-	pan_P[3] = 0.17;		/* PID1\beta */
-	pan_P[4] = 9.0;		/* PID1\tauI */
-	pan_P[5] = -0.99;		/* SignalLimiter2\minimum */
-	pan_P[6] = 0.99;		/* SignalLimiter2\maximum */
-
+    /* set the parameters */
+    pan_P[0] = 0.0;     /* corrGain\K */
+    pan_P[1] = 15.0;        /* PID1\kp */
+    pan_P[2] = 0.1; /* PID1\tauD */
+    pan_P[3] = 0.5; /* PID1\beta */
+    pan_P[4] = 50.0;        /* PID1\tauI */
+    pan_P[5] = -0.99;   /* SignalLimiter2\minimum */
+    pan_P[6] = 0.99;    /* SignalLimiter2\maximum */    
+ 
 }
 #if (7 > 8192) && defined _MSC_VER
 #pragma optimize("", on)
@@ -142,7 +143,7 @@ void PanModelInitialize_states(void)
 void PanModelInitialize_variables(void)
 {
 	/* initialize the variable memory to zero */
-	memset(pan_V, 0, pan_variables_size * sizeof(XXDouble));
+	memset(pan_V, 0, pan_variables_size * sizeof(PanDouble));
 }
 
 /* this method is called before calculation is possible */

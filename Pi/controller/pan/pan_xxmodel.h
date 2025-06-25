@@ -5,8 +5,8 @@
  *  subm:  PositionControllerPan
  *  model: Jiwy-1
  *  expmt: Jiwy-1
- *  date:  June 9, 2025
- *  time:  11:18:49 PM
+ *  date:  June 25, 2025
+ *  time:  12:21:48 PM
  *  user:  Vakgroep RaM
  *  from:  -
  *  build: 5.1.4.13773
@@ -18,26 +18,21 @@
    The model itself is the xxmodel.c file
 */
 
-
-#ifndef PAN_MODEL_H
-#define PAN_MODEL_H
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#ifndef Pan_MODEL_H
+#define Pan_MODEL_H
 
 /* Our own include files */
 #include "xxtypes.h"
 
 /* Simulation variables */
-//extern XXDouble xx_start_time;
-//extern XXDouble xx_finish_time;
-//extern XXDouble xx_step_size;
-//extern XXDouble xx_time;
-//extern XXInteger xx_steps;
-//extern XXBoolean xx_initialize;
-//extern XXBoolean xx_major;
-//extern XXBoolean xx_stop_simulation;
+extern PanDouble pan_start_time;
+extern PanDouble pan_finish_time;
+extern PanDouble pan_step_size;
+extern PanDouble pan_time;
+extern PanInteger pan_steps;
+extern PanBoolean pan_initialize;
+extern PanBoolean pan_major;
+extern PanBoolean pan_stop_simulation;
 
 /* Model size constants */
 #define pan_constants_size 0
@@ -47,22 +42,20 @@ extern "C" {
 #define pan_states_size 3
 
 /* Variable arrays */
-extern XXDouble pan_P[];
-extern XXDouble pan_I[];
-extern XXDouble pan_V[];
-extern XXDouble pan_s[];
-extern XXDouble pan_R[];
-
-extern XXDouble pan_step_size;
+extern PanDouble pan_P[];
+extern PanDouble pan_I[];
+extern PanDouble pan_V[];
+extern PanDouble pan_s[];
+extern PanDouble pan_R[];
 
 
 /* The names of the variables as used in the arrays above
    uncomment this if you need the names (see source file too)
-extern XXString xx_parameter_names[];
-extern XXString xx_initial_value_names[];
-extern XXString xx_variable_names[];
-extern XXString xx_state_names[];
-extern XXString xx_rate_names[];
+extern PanString pan_parameter_names[];
+extern PanString pan_initial_value_names[];
+extern PanString pan_variable_names[];
+extern PanString pan_state_names[];
+extern PanString pan_rate_names[];
 */
 
 /* Initialization methods */
@@ -83,9 +76,6 @@ void PanCalculateDynamic (void);
 void PanCalculateOutput (void);
 void PanCalculateFinal (void);
 
-#ifdef __cplusplus
-}
-#endif
 
 #endif
 

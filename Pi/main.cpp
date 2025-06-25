@@ -18,9 +18,11 @@
 #define ENCODER_ERROR_TOLERANCE  2
 #define HOMING_STALL_THRESHOLD  50
 #define RAD_TOLERANCE    (0.1)
-#define MAX_SAFE_DUTY  ((uint16_t)(0.1 * ((1 << 12) - 1)))
+#define MAX_SAFE_DUTY  ((uint16_t)(0.2 * ((1 << 12) - 1)))
 
 #define MIN_OBJ_SIZE 2000
+
+XXDouble x_offset_rad = 0.0, y_offset_rad = 0.0;
 
 // Forward declaration
 int error(const char *msg, const int e_code, int fd);
@@ -124,6 +126,8 @@ int main(int argc, char *argv[]) {
     // pitch and yaw destination
     XXDouble pitch_dst_rad;
     XXDouble yaw_dst_rad;
+    XXDouble pitch_dst_rad_old;
+    XXDouble yaw_dst_rad_old;
 
     // 2) open SPI
     int fd = SpiOpen(SPI_CHANNEL, SPI_SPEED_HZ, SPI_MODE);
@@ -172,18 +176,25 @@ int main(int argc, char *argv[]) {
         XXDouble yaw_pos_rad   = steps2rads(abs_y, (int32_t)yaw_max_steps);
 
         process_one_frame(sink, yaw_dst_rad, pitch_dst_rad, obj_size);
-        
-        yaw_dst_rad += yaw_pos_rad;
-        pitch_dst_rad += pitch_pos_rad;
-        //Object too small, no real object in sight!
+
+        XXDouble yaw_destination, pitch_destination;
+
         if(obj_size <= MIN_OBJ_SIZE)
         {
-            yaw_dst_rad = /*yaw_middle_rad;*/yaw_pos_rad;
-            pitch_dst_rad = /*pitch_middle_rad;*/pitch_pos_rad;
+            // No object, command is to hold current position
+            yaw_destination = yaw_pos_rad;
+            pitch_destination = pitch_pos_rad;
+        }
+        else
+        {
+            // Object found, new destination is current position + offset
+            // The PID will then work to close the gap between current and destination.
+            // NOTE: The y-axis from image processing is often inverted. Check your camera.
+            yaw_destination = yaw_pos_rad + x_offset_rad;
+            pitch_destination = pitch_pos_rad - y_offset_rad; 
         }
 
-        // step the C controller
-        ControllerStep(pitch_pos_rad, pitch_dst_rad, yaw_pos_rad, yaw_dst_rad);
+        ControllerStep(pitch_pos_rad, pitch_destination, yaw_pos_rad, yaw_destination, dt);
 
         // read back
         XXDouble pan_out  = getPanOut();  // Corresponds to Yaw
@@ -192,12 +203,12 @@ int main(int argc, char *argv[]) {
         // printf("Controller Output: Pitch=%.2f rad, Yaw=%.2f rad\n", tilt_out, pan_out);
 
         // pack PWM
-        uint16_t pan_duty = (uint16_t)(fabs(pan_out)) * MAX_SAFE_DUTY;
+        uint16_t pan_duty = (uint16_t)(fmin(fabs(pan_out),1.0) * MAX_SAFE_DUTY);
         uint8_t  pan_dir  = (pan_out >= 0.0) ? 0 : 1;
-        uint16_t tlt_duty = (uint16_t)(fabs(tilt_out)) * MAX_SAFE_DUTY;
+        uint16_t tlt_duty = (uint16_t)(fmin(fabs(tilt_out),1.0) * MAX_SAFE_DUTY);
         uint8_t  tlt_dir  = (tilt_out >= 0.0) ? 0 : 1;
 
-        // printf("PWM: Pitch=%d (dir=%d), Yaw=%d (dir=%d)\n", tlt_duty, tlt_dir, pan_duty, pan_dir);
+        //printf("\nPWM: Pitch=%d (dir=%d), Yaw=%d (dir=%d)\n", tlt_duty, tlt_dir, pan_duty, pan_dir);
 
         // send PWM
         SendAllPwmCmd(fd,

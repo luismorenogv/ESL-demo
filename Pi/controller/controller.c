@@ -1,98 +1,90 @@
-// Filename : controller.c 
-// Authors :
-// Group :
-// License : N.A. or open source license like LGPL
-// Description : 
-//==============================================================
+// Filename : controller.c
+// Assumes 20-sim generated functions/variables have been renamed with Pan/Tilt prefixes.
 
-
-/** INCLUDES **/
 #include "controller.h"
-#include "pan_model.h"
-#include "tilt_model.h"
-#include <math.h>
-#include <stdio.h>
 
-#define TILT_CONVERGENCE 0.06
-#define PAN_CONVERGENCE 0.15
+// Include the renamed submodel headers
+#include "pan/pan_xxsubmod.h"
+#include "tilt/tilt_xxsubmod.h"
+#include <stdbool.h>
 
-/* EXTERN VARIABLES */
-extern XXDouble pan_V[];
-extern XXDouble tilt_V[];
+// --- Global variables to hold the I/O for each controller ---
+static XXDouble pan_inputs[2];
+static XXDouble pan_outputs[2];
+static XXDouble tilt_inputs[3];
+static XXDouble tilt_outputs[1];
 
-/** LOCAL VARIABLES **/
-XXDouble  panOut = 0.0, 
-         tiltOut = 0.0,
-            corr = 0.0;
+// --- Global state for time ---
+static XXDouble g_pan_time = 0.0;
+static XXDouble g_tilt_time = 0.0;
 
-/** LOCAL FUNCTIONS **/
-void SetPanInputs(XXDouble pos, XXDouble dst);
-void ReadPanOutputs(void);
-void SetTiltInputs(XXDouble pos, XXDouble dst, XXDouble corr);
-void ReadTiltOutputs(void);
+// Flag to ensure initialization is only called once
+static bool g_is_initialized = false;
 
-void ControllerInitialize(void)
-{
-    //Pan init
-    PanModelInitialize();
-    PanCalculateInitial();
-    //Tilt init
-    TiltModelInitialize();
-    TiltCalculateInitial();
+
+void ControllerInitialize(void) {
+    // Initialize Pan with zero inputs/outputs at time 0
+    pan_inputs[0] = 0.0; pan_inputs[1] = 0.0;
+    PanInitializeSubmodel(pan_inputs, pan_outputs, 0.0);
+    
+    // Initialize Tilt with zero inputs/outputs at time 0
+    tilt_inputs[0] = 0.0; tilt_inputs[1] = 0.0; tilt_inputs[2] = 0.0;
+    TiltInitializeSubmodel(tilt_inputs, tilt_outputs, 0.0);
+    
+    g_is_initialized = true;
 }
 
-void ControllerStep(XXDouble tiltPos, XXDouble tiltDst, XXDouble panPos, XXDouble panDst)
-{
-    printf("Position: %.2f\tDistance: %.2f\t", tiltPos - tiltDst);
-    printf("Error: %.2f\t", tiltPos - tiltDst);
-    //printf("pan Error: %.2f\n", panPos - panDst);
-    // tiltDst = tiltPos;
-    if(fabs(tiltPos - tiltDst) < TILT_CONVERGENCE) tiltDst = tiltPos;
-    if(fabs(panPos - panDst) < PAN_CONVERGENCE) panDst = panPos;
-        //set pan inputs
-    SetPanInputs(panPos, panDst);
+void ControllerStep(XXDouble tiltPos, XXDouble tiltDst,
+                    XXDouble panPos,  XXDouble panDst,
+                    XXDouble dt) {
 
-    //calculate pan dynamic
-    PanCalculateDynamic();
-    PanCalculateOutput();
+    if (!g_is_initialized) {
+        ControllerInitialize();
+    }
+    
+    // --- Step 1: Pan Controller ---
+    
+    // The submodel wrapper handles time and step size internally now.
+    // We just need to pass the current time and the model will use its step size.
+    // We must, however, update the global step size variable before calling.
+    extern XXDouble pan_step_size; // This global is defined in the renamed pan_xxmodel.c
+    pan_step_size = dt;
+    g_pan_time += dt;
 
-    //read pan output
-    ReadPanOutputs();
+    // Prepare inputs for the pan model
+    pan_inputs[0] = panDst;    // "in"
+    pan_inputs[1] = panPos;    // "position"
+    
+    // Calculate one step
+    PanCalculateSubmodel(pan_inputs, pan_outputs, g_pan_time);
+    
+    // --- Step 2: Tilt Controller ---
+    
+    extern XXDouble tilt_step_size; // This global is defined in the renamed tilt_xxmodel.c
+    tilt_step_size = dt;
+    g_tilt_time += dt;
 
-    //set tilt inputs
-    SetTiltInputs(tiltPos, tiltDst, corr);
-
-    //calculate tilt dynamic
-    TiltCalculateDynamic();
-    TiltCalculateOutput();
-
-    //read pan output
-    ReadTiltOutputs();
+    // Prepare inputs for the tilt model
+    tilt_inputs[0] = pan_outputs[0]; // corr value from pan controller
+    tilt_inputs[1] = tiltDst;        // "in"
+    tilt_inputs[2] = tiltPos;        // "position"
+    
+    // Calculate one step
+    TiltCalculateSubmodel(tilt_inputs, tilt_outputs, g_tilt_time);
 }
 
-void SetPanInputs(XXDouble pos, XXDouble dst)
-{
-    pan_V[7] = dst;
-    pan_V[8] = pos;
+void ControllerTerminate(void) {
+    PanTerminateSubmodel(pan_inputs, pan_outputs, g_pan_time);
+    TiltTerminateSubmodel(tilt_inputs, tilt_outputs, g_tilt_time);
 }
 
-void ReadPanOutputs(void)
-{
-    corr    = pan_V[6];
-    panOut  = pan_V[9];
+// --- Getter Functions ---
+XXDouble getPanOut(void) {
+    // From pan_xxsubmod.c, output[0] is "corr", output[1] is "out"
+    return pan_outputs[1];
 }
 
-void SetTiltInputs(XXDouble pos, XXDouble dst, XXDouble corr)
-{
-    tilt_V[8]  = corr;
-    tilt_V[9]  = dst;
-    tilt_V[10] = pos;
+XXDouble getTiltOut(void) {
+    // From tilt_xxsubmod.c, output[0] is "out"
+    return tilt_outputs[0];
 }
-
-void ReadTiltOutputs(void)
-{
-    tiltOut = tilt_V[11];
-}
-
-XXDouble getPanOut(void){return panOut;}
-XXDouble getTiltOut(void){return tiltOut;}

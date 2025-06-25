@@ -11,4 +11,18 @@ sudo modprobe spi-bcm2835 && \
 cd ../Assignment_13/Pi
 
 
-gcc -o controllerPi main.c spi_comm.c controller/controller.c controller/pan_model.c controller/tilt_model.c -lm -Wall
+g++ main.cpp spi_comm.c \
+    controller/controller.c \
+    controller/common/xxfuncs.c \
+    controller/pan/pan_integ.c \
+    controller/pan/pan_xxmodel.c \
+    controller/pan/pan_xxsubmod.c \
+    controller/tilt/tilt_integ.c \
+    controller/tilt/tilt_xxmodel.c \
+    controller/tilt/tilt_xxsubmod.c \
+    img_proc/img_proc.cpp \
+    -I./ \
+    -I./controller/common/ \
+    `pkg-config --cflags --libs opencv4 gstreamer-1.0 gstreamer-app-1.0` \
+    -lm -lstdc++ -Wall \
+    -o gimbal_tracker

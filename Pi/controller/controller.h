@@ -1,23 +1,29 @@
-// Filename : controller.h 
-// Authors : 
-// Group : 
-// License : N.A. or open source license like LGPL
-// Description : description
-//==============================================================
+// Filename : controller.h
+// Description : A clean C wrapper for the 20-sim generated pan/tilt controllers.
 
-#ifndef CONTROLLER_HPP
-#define CONTROLLER_HPP
+#ifndef CONTROLLER_H
+#define CONTROLLER_H
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#include "xxtypes.h"
+#include "common/xxtypes.h"
 
-/* GLOBAL FUNCTIONS*/
+/* GLOBAL FUNCTIONS */
+
+// Initializes both the pan and tilt controllers.
 void ControllerInitialize(void);
-void ControllerStep(XXDouble tiltPos, XXDouble tiltDst, XXDouble panPos, XXDouble panDst);
 
+// Steps both controllers forward in time.
+void ControllerStep(XXDouble tiltPos, XXDouble tiltDst,
+                    XXDouble panPos,  XXDouble panDst,
+                    XXDouble dt);
+
+// Terminates both controllers (frees memory, etc.).
+void ControllerTerminate(void);
+
+// Getter functions for the calculated outputs.
 XXDouble getPanOut(void);
 XXDouble getTiltOut(void);
 
@@ -25,4 +31,4 @@ XXDouble getTiltOut(void);
 }
 #endif
 
-#endif
+#endif // CONTROLLER_H
