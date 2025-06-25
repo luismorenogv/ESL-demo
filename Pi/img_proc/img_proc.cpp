@@ -82,7 +82,8 @@ void computeAngles(int x_actual, int y_actual, int width, int height, double& x_
 
 bool process_one_frame(GstElement* appsink, double& x_offset_rad, double& y_offset_rad, double& obj_size) {
     GstSample* sample = gst_app_sink_try_pull_sample(GST_APP_SINK(appsink),  0 /*GST_SECOND / 10*/);  // non-blocking
-    int width, height;
+    static int width, height;
+    static bool init = false;
     static double old_x_offset_rad = 0;
     static double old_y_offset_rad = 0;
     static double old_obj_size = 0;
@@ -98,8 +99,12 @@ bool process_one_frame(GstElement* appsink, double& x_offset_rad, double& y_offs
     GstCaps* caps = gst_sample_get_caps(sample);
     GstStructure* s = gst_caps_get_structure(caps, 0);
     GstMapInfo map;
-    gst_structure_get_int(s, "width", &width);
-    gst_structure_get_int(s, "height", &height);
+    
+    if (!init)
+    {
+        gst_structure_get_int(s, "width", &width);
+        gst_structure_get_int(s, "height", &height);
+    }
     
     if (!gst_buffer_map(buffer, &map, GST_MAP_READ)) {
         gst_sample_unref(sample);
@@ -108,31 +113,33 @@ bool process_one_frame(GstElement* appsink, double& x_offset_rad, double& y_offs
 
     // Convert to OpenCV format
     cv::Mat yuy2(height, width, CV_8UC2, (char*)map.data);
-    cv::Mat bgr;
+    static cv::Mat bgr;
     cv::cvtColor(yuy2, bgr, cv::COLOR_YUV2BGR_YUY2);
 
     // Green tracking
-    cv::Mat inputImageHSV, maskedImage;
+    static cv::Mat inputImageHSV, maskedImage;
     std::vector<std::vector<cv::Point>> contours;
     int largeContIndex = 0;
     double max_area = 0.0;
 
     // Green thresholds
-    cv::Scalar green_lower_threshold(35, 50, 50);
-    cv::Scalar green_upper_threshold(85, 255, 255);
+    static const cv::Scalar green_lower_threshold(35, 50, 50);
+    static const cv::Scalar green_upper_threshold(85, 255, 255);
 
     // Convert to HSV
     cv::cvtColor(bgr, inputImageHSV, cv::COLOR_BGR2HSV);
     cv::inRange(inputImageHSV, green_lower_threshold, green_upper_threshold, maskedImage);
-    cv::findContours(maskedImage, contours, cv::RETR_TREE, cv::CHAIN_APPROX_NONE);
+    cv::findContours(maskedImage, contours, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE);
 
     int bBoxCenterX;
     int bBoxCenterY;
 
     if (!contours.empty()) {
         // Take biggest contour
+        double area = 0;
         for (size_t i = 0; i < contours.size(); ++i) {
-            double area = cv::contourArea(contours[i]);
+            area = cv::contourArea(contours[i]);
+            if (area < 500) continue;
             if (area > max_area) {
                 max_area = area;
                 largeContIndex = i;

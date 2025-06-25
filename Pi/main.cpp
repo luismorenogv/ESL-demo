@@ -117,16 +117,13 @@ int main(int argc, char *argv[]) {
         return 1;
     }
     GstElement *pipeline, *sink;
-    
-    bool pitch_target_met = false;
-    bool yaw_target_met = false;
 
     int32_t pitch_steps_target;
     int32_t yaw_steps_target;
 
     // pitch and yaw destination
-    XXDouble pitch_ref;
-    XXDouble yaw_ref;
+    XXDouble pitch_dst_rad;
+    XXDouble yaw_dst_rad;
 
     // 2) open SPI
     int fd = SpiOpen(SPI_CHANNEL, SPI_SPEED_HZ, SPI_MODE);
@@ -171,42 +168,37 @@ int main(int argc, char *argv[]) {
         int32_t abs_y = raw_y - yaw_offset;
 
         // to radians
-        XXDouble pitch_rad = steps2rads(abs_p, (int32_t)pitch_max_steps);
-        XXDouble yaw_rad   = steps2rads(abs_y, (int32_t)yaw_max_steps);
+        XXDouble pitch_pos_rad = steps2rads(abs_p, (int32_t)pitch_max_steps);
+        XXDouble yaw_pos_rad   = steps2rads(abs_y, (int32_t)yaw_max_steps);
 
-        process_one_frame(sink, yaw_ref, pitch_ref, obj_size);
-        /*TRY*/
-        yaw_ref += yaw_rad;
-        pitch_ref += pitch_rad;
-        //Object too small, no real object in sight! (TODO: make it better)
+        process_one_frame(sink, yaw_dst_rad, pitch_dst_rad, obj_size);
+        
+        yaw_dst_rad += yaw_pos_rad;
+        pitch_dst_rad += pitch_pos_rad;
+        //Object too small, no real object in sight!
         if(obj_size <= MIN_OBJ_SIZE)
         {
-            yaw_ref = /*yaw_middle_rad;*/yaw_rad;
-            pitch_ref = /*pitch_middle_rad;*/pitch_rad;
+            yaw_dst_rad = /*yaw_middle_rad;*/yaw_pos_rad;
+            pitch_dst_rad = /*pitch_middle_rad;*/pitch_pos_rad;
         }
 
         // step the C controller
-        ControllerStep(pitch_rad, pitch_ref, yaw_rad, yaw_ref);
+        ControllerStep(pitch_pos_rad, pitch_dst_rad, yaw_pos_rad, yaw_dst_rad);
 
         // read back
         XXDouble pan_out  = getPanOut();  // Corresponds to Yaw
         XXDouble tilt_out = getTiltOut(); // Corresponds to Pitch
-        // printf("Tilt Out: %.2f", tilt_out);
+        printf("Tilt Out: %.2f\n", tilt_out);
         // printf("Controller Output: Pitch=%.2f rad, Yaw=%.2f rad\n", tilt_out, pan_out);
 
         // pack PWM
-        uint16_t pan_duty = (uint16_t)(fmin(fabs(pan_out),1.0) * MAX_SAFE_DUTY);
+        uint16_t pan_duty = (uint16_t)(fabs(pan_out)) * MAX_SAFE_DUTY;
         uint8_t  pan_dir  = (pan_out >= 0.0) ? 0 : 1;
-        uint16_t tlt_duty = (uint16_t)(fmin(fabs(tilt_out),1.0) * MAX_SAFE_DUTY);
+        uint16_t tlt_duty = (uint16_t)(fabs(tilt_out)) * MAX_SAFE_DUTY;
         uint8_t  tlt_dir  = (tilt_out >= 0.0) ? 0 : 1;
 
         // printf("PWM: Pitch=%d (dir=%d), Yaw=%d (dir=%d)\n", tlt_duty, tlt_dir, pan_duty, pan_dir);
 
-
-        if (pitch_target_met && yaw_target_met) {
-            printf("Both targets met. Exiting loop.\n");
-            break;
-        }
         // send PWM
         SendAllPwmCmd(fd,
                       tlt_duty, /*en=*/1, tlt_dir,  // Pitch (Tilt)

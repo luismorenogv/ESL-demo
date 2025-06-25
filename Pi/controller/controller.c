@@ -43,7 +43,8 @@ void ControllerInitialize(void)
 
 void ControllerStep(XXDouble tiltPos, XXDouble tiltDst, XXDouble panPos, XXDouble panDst)
 {
-    printf("tilt Error: %.2f\n", tiltPos - tiltDst);
+    printf("Position: %.2f\tDistance: %.2f\t", tiltPos - tiltDst);
+    printf("Error: %.2f\t", tiltPos - tiltDst);
     //printf("pan Error: %.2f\n", panPos - panDst);
     // tiltDst = tiltPos;
     if(fabs(tiltPos - tiltDst) < TILT_CONVERGENCE) tiltDst = tiltPos;
