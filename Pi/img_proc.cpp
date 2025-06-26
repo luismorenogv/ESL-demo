@@ -1,6 +1,7 @@
 #include "img_proc.hpp"
 #include <stdio.h>
 #include <math.h>
+#include <unistd.h>
 
 #define DFOV_DEG    55 //Obtained from camera manufacturer website
 #define HFOV_DEG    48.808 //Calculated
@@ -8,6 +9,34 @@
 
 #define HFOV_RAD    HFOV_DEG * M_PI / 180.0f
 #define VFOV_RAD    VFOV_DEG * M_PI / 180.0f
+
+// Definitions for the global shared variables
+std::atomic<bool> g_run(true);
+TargetData g_target_data;
+std::mutex g_target_mutex;
+
+
+// Low-frequency vision thread
+void vision_thread_func(GstElement *sink) {
+    printf("Vision thread started.\n");
+    
+    double x_offset, y_offset, obj_size;
+    
+    while(g_run) {
+        if (ProcessOneFrame(sink, x_offset, y_offset, obj_size)){
+            // Update shared data (with mutex lock)
+            {
+                std::lock_guard<std::mutex> lock(g_target_mutex);
+                g_target_data.x_offset_rad = x_offset;
+                g_target_data.y_offset_rad = y_offset;
+                g_target_data.obj_size = obj_size;
+            }
+        }
+
+        usleep(1000); // Sleep for 1ms
+    }
+    printf("Vision thread finished.\n");
+}
 
 
 int InitGstreamerPipeline(const char* device_path, GstElement** pipeline_out, GstElement** appsink_out) {
