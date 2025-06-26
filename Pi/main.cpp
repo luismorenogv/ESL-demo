@@ -22,12 +22,10 @@
 
 #define MIN_OBJ_SIZE 2000
 
-XXDouble x_offset_rad = 0.0, y_offset_rad = 0.0;
-
 // Forward declaration
 int error(const char *msg, const int e_code, int fd);
 
-void home_both_axes(int spi_fd, int32_t* pitch_offset_out, int32_t* yaw_offset_out,
+void HomeBothAxes(int spi_fd, int32_t* pitch_offset_out, int32_t* yaw_offset_out,
                                 uint32_t* pitch_max_steps, uint32_t* yaw_max_steps) {
     printf("Homing both axes simultaneously...\n");
 
@@ -129,6 +127,9 @@ int main(int argc, char *argv[]) {
     XXDouble pitch_dst_rad_old;
     XXDouble yaw_dst_rad_old;
 
+    // Initialize offsets in radians
+    XXDouble x_offset_rad = 0.0, y_offset_rad = 0.0;
+
     // 2) open SPI
     int fd = SpiOpen(SPI_CHANNEL, SPI_SPEED_HZ, SPI_MODE);
     if (fd < 0) return 1;
@@ -136,18 +137,23 @@ int main(int argc, char *argv[]) {
     // 3) Homing procedure
     int32_t pitch_offset, yaw_offset;
     uint32_t pitch_max_steps, yaw_max_steps;
-    home_both_axes(fd, &pitch_offset, &yaw_offset, 
+    HomeBothAxes(fd, &pitch_offset, &yaw_offset, 
                    &pitch_max_steps, &yaw_max_steps);
 
+    // Pre-compute useful encoder positions
     XXDouble pitch_middle_rad = steps2rads((int32_t)(pitch_max_steps/2), 
                                             (int32_t)pitch_max_steps);
     XXDouble yaw_middle_rad = steps2rads((int32_t)(yaw_max_steps/2), 
                                           (int32_t)yaw_max_steps);
+    XXDouble pitch_max_rad = steps2rads((int32_t)pitch_max_steps, 
+                                        (int32_t)pitch_max_steps);
+    XXDouble yaw_max_rad = steps2rads((int32_t)yaw_max_steps, 
+                                      (int32_t)yaw_max_steps);
 
     double obj_size;
     // 4) init your C controller
     ControllerInitialize();
-    if (init_gstreamer_pipeline(argv[1], &pipeline, &sink) != 0) return -1;
+    if (InitGstreamerPipeline(argv[1], &pipeline, &sink) != 0) return -1;
     
     // 5) Timing setup
     struct timespec last_time, current_time;
@@ -171,30 +177,29 @@ int main(int argc, char *argv[]) {
         int32_t abs_p = raw_p - pitch_offset;
         int32_t abs_y = raw_y - yaw_offset;
 
-        // to radians
-        XXDouble pitch_pos_rad = steps2rads(abs_p, (int32_t)pitch_max_steps);
-        XXDouble yaw_pos_rad   = steps2rads(abs_y, (int32_t)yaw_max_steps);
+        // Current position in radians
+        XXDouble pitch_curr_pos_rad = steps2rads(abs_p, (int32_t)pitch_max_steps);
+        XXDouble yaw_curr_pos_rad   = steps2rads(abs_y, (int32_t)yaw_max_steps);
 
-        process_one_frame(sink, yaw_dst_rad, pitch_dst_rad, obj_size);
-
-        XXDouble yaw_destination, pitch_destination;
+        ProcessOneFrame(sink, x_offset_rad, y_offset_rad, obj_size);
 
         if(obj_size <= MIN_OBJ_SIZE)
         {
             // No object, command is to hold current position
-            yaw_destination = yaw_pos_rad;
-            pitch_destination = pitch_pos_rad;
+            yaw_dst_rad = yaw_curr_pos_rad;
+            pitch_dst_rad = pitch_curr_pos_rad;
         }
         else
         {
             // Object found, new destination is current position + offset
-            // The PID will then work to close the gap between current and destination.
-            // NOTE: The y-axis from image processing is often inverted. Check your camera.
-            yaw_destination = yaw_pos_rad + x_offset_rad;
-            pitch_destination = pitch_pos_rad - y_offset_rad; 
+            XXDouble target_yaw = yaw_curr_pos_rad + x_offset_rad;
+            yaw_dst_rad = fmax(0.0, fmin(target_yaw, yaw_max_rad));
+
+            XXDouble target_pitch = pitch_curr_pos_rad - y_offset_rad;
+            pitch_dst_rad = fmax(0.0, fmin(target_pitch, pitch_max_rad));
         }
 
-        ControllerStep(pitch_pos_rad, pitch_destination, yaw_pos_rad, yaw_destination, dt);
+        ControllerStep(pitch_curr_pos_rad, pitch_dst_rad, yaw_curr_pos_rad, yaw_dst_rad, dt);
 
         // read back
         XXDouble pan_out  = getPanOut();  // Corresponds to Yaw
@@ -221,7 +226,7 @@ int main(int argc, char *argv[]) {
     printf("Stopping motors and closing SPI.\n");
     SendAllPwmCmd(fd, 0,0,0, 0,0,0);
     SpiClose(fd);
-    cleanup_gstreamer_pipeline(pipeline);
+    CleanupGstreamerPipeline(pipeline);
     return 0;
 }
 

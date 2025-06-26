@@ -57,7 +57,7 @@ int SpiClose(int fd) {
     return close(fd);
 }
 
-int SendPwmCmd(int fd, unit_t unit, uint16_t duty, uint8_t enable, uint8_t dir) {
+int SendPwmCmd(int fd, encoder_t unit, uint16_t duty, uint8_t enable, uint8_t dir) {
     uint8_t tx[3], rx[3];
     uint8_t cmd = (unit == UnitPitch) ? CMD_WRITE_PITCH_PWM : CMD_WRITE_YAW_PWM;
 
@@ -80,7 +80,7 @@ int SendAllPwmCmd(int fd, uint16_t pitch_duty, uint8_t pitch_enable, uint8_t pit
     return SpiXfer(fd, SPI_SPEED_HZ, tx, rx, 5);
 }
 
-int ReadPositionCmd(int fd, unit_t unit, int32_t *pitch_pos, int32_t *yaw_pos) {
+int ReadPositionCmd(int fd, encoder_t unit, int32_t *pitch_pos, int32_t *yaw_pos) {
     int32_t *out_pos = (unit == UnitPitch) ? pitch_pos : (unit == UnitYaw) ? yaw_pos : NULL;
     uint8_t byte_size = (unit == UnitAll) ? 9 : 5;
     uint8_t tx[byte_size], rx[byte_size];

@@ -1,5 +1,4 @@
-// Filename : controller.h
-// Description : A clean C wrapper for the 20-sim generated pan/tilt controllers.
+// controller.h
 
 #ifndef CONTROLLER_H
 #define CONTROLLER_H
@@ -20,7 +19,7 @@ void ControllerStep(XXDouble tiltPos, XXDouble tiltDst,
                     XXDouble panPos,  XXDouble panDst,
                     XXDouble dt);
 
-// Terminates both controllers (frees memory, etc.).
+// Terminates both controllers
 void ControllerTerminate(void);
 
 // Getter functions for the calculated outputs.

@@ -9,13 +9,12 @@
 #define HFOV_RAD    HFOV_DEG * M_PI / 180.0f
 #define VFOV_RAD    VFOV_DEG * M_PI / 180.0f
 
-/* PROTOTYPES */
-//void computeAngles(int x_actual, int y_actual, int width, int height, double& x_offset_rad, double& y_offset_rad);
 
-
-int init_gstreamer_pipeline(const char* device_path, GstElement** pipeline_out, GstElement** appsink_out) {
+int InitGstreamerPipeline(const char* device_path, GstElement** pipeline_out, GstElement** appsink_out) {
+    // Initialize GStreamer library
     gst_init(NULL, NULL);
 
+    // Create pipeline and elements: camera source, capsfilter, and appsink
     GstElement *pipeline = gst_pipeline_new("video-pipeline");
     GstElement *source = gst_element_factory_make("v4l2src", "source");
     GstElement *capsfilter = gst_element_factory_make("capsfilter", "capsfilter");
@@ -26,7 +25,7 @@ int init_gstreamer_pipeline(const char* device_path, GstElement** pipeline_out, 
         return -1;
     }
 
-    // Set camera device
+    // Set the video device path
     g_object_set(G_OBJECT(source), "device", device_path, NULL);
 
     // Set appsink properties
@@ -49,8 +48,10 @@ int init_gstreamer_pipeline(const char* device_path, GstElement** pipeline_out, 
         return -1;
     }
 
+    // Start the pipeline
     gst_element_set_state(pipeline, GST_STATE_PLAYING);
 
+    // Output the created pipeline and appsink
     *pipeline_out = pipeline;
     *appsink_out = sink;
 
@@ -58,14 +59,14 @@ int init_gstreamer_pipeline(const char* device_path, GstElement** pipeline_out, 
 }
 
 
-void cleanup_gstreamer_pipeline(GstElement* pipeline) {
+void CleanupGstreamerPipeline(GstElement* pipeline) {
     gst_element_set_state(pipeline, GST_STATE_NULL);
     gst_object_unref(pipeline);
 }
 
 
 // Function to compute angular position from image center in radians
-void computeAngles(int x_actual, int y_actual, int width, int height, double& x_offset_rad, double& y_offset_rad) {
+void ComputeAngles(int x_actual, int y_actual, int width, int height, double& x_offset_rad, double& y_offset_rad) {
 
     // Compute offset from center
     double x_offset = x_actual - (width/2.0f); // Horizontal distance from center
@@ -80,63 +81,62 @@ void computeAngles(int x_actual, int y_actual, int width, int height, double& x_
     y_offset_rad = y_offset * rad_per_px_y;
 }
 
-bool process_one_frame(GstElement* appsink, double& x_offset_rad, double& y_offset_rad, double& obj_size) {
-    GstSample* sample = gst_app_sink_try_pull_sample(GST_APP_SINK(appsink),  0 /*GST_SECOND / 10*/);  // non-blocking
+bool ProcessOneFrame(GstElement* appsink, double& x_offset_rad, double& y_offset_rad, double& obj_size) {
+    // Try to get a new video frame from the GStreamer pipeline. Non-blocking.
+    GstSample* sample = gst_app_sink_try_pull_sample(GST_APP_SINK(appsink), 0);
+
+    // Static variables to remember the last good values.
     static int width, height;
-    static bool init = false;
-    static double old_x_offset_rad = 0;
-    static double old_y_offset_rad = 0;
-    static double old_obj_size = 0;
+    static double old_x_offset_rad = 0, old_y_offset_rad = 0, old_obj_size = 0;
+
+    // If no new frame is available, return the previous data and exit.
     if (!sample) {
         x_offset_rad = old_x_offset_rad;
         y_offset_rad = old_y_offset_rad;
         obj_size     = old_obj_size;
         return false;
     }
-    
-    
+
+    // Get the raw image data (buffer) and its properties (caps).
     GstBuffer* buffer = gst_sample_get_buffer(sample);
     GstCaps* caps = gst_sample_get_caps(sample);
     GstStructure* s = gst_caps_get_structure(caps, 0);
+    gst_structure_get_int(s, "width", &width);
+    gst_structure_get_int(s, "height", &height);
+    
+    // Map the GStreamer buffer to memory so OpenCV can access it.
     GstMapInfo map;
-    
-    if (!init)
-    {
-        gst_structure_get_int(s, "width", &width);
-        gst_structure_get_int(s, "height", &height);
-    }
-    
     if (!gst_buffer_map(buffer, &map, GST_MAP_READ)) {
         gst_sample_unref(sample);
         return false;
     }
 
-    // Convert to OpenCV format
+    // Convert the YUY2 format into a standard BGR image for OpenCV.
     cv::Mat yuy2(height, width, CV_8UC2, (char*)map.data);
     static cv::Mat bgr;
     cv::cvtColor(yuy2, bgr, cv::COLOR_YUV2BGR_YUY2);
 
-    // Green tracking
+    // Convert the image from BGR to HSV color space.
     static cv::Mat inputImageHSV, maskedImage;
-    std::vector<std::vector<cv::Point>> contours;
-    int largeContIndex = 0;
-    double max_area = 0.0;
+    cv::cvtColor(bgr, inputImageHSV, cv::COLOR_BGR2HSV);
 
-    // Green thresholds
+    // Create a binary "mask" to isolate the green color
     static const cv::Scalar green_lower_threshold(35, 50, 50);
     static const cv::Scalar green_upper_threshold(85, 255, 255);
-
-    // Convert to HSV
-    cv::cvtColor(bgr, inputImageHSV, cv::COLOR_BGR2HSV);
     cv::inRange(inputImageHSV, green_lower_threshold, green_upper_threshold, maskedImage);
+    
+    // Find the contours of all the green objects
+    std::vector<std::vector<cv::Point>> contours;
     cv::findContours(maskedImage, contours, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE);
 
-    int bBoxCenterX;
-    int bBoxCenterY;
+    int bBoxCenterX = 0;
+    int bBoxCenterY = 0;
+    double max_area = 0.0;
 
     if (!contours.empty()) {
-        // Take biggest contour
+        // Take largest area
         double area = 0;
+        int largeContIndex = 0;
         for (size_t i = 0; i < contours.size(); ++i) {
             area = cv::contourArea(contours[i]);
             if (area < 500) continue;
@@ -157,16 +157,19 @@ bool process_one_frame(GstElement* appsink, double& x_offset_rad, double& y_offs
         bBoxCenterY = 0;
     }
 
+    // Store the object's area and calculate its angular offset from the center.
     obj_size = max_area;
-    //printf("Object size: %.2f, Center: (%d, %d)\n", obj_size, bBoxCenterX, bBoxCenterY);
-    computeAngles(bBoxCenterX, bBoxCenterY, width, height, x_offset_rad, y_offset_rad);
-    //if(obj_size > 2000) printf("y_offset: %.2f\n", x_offset_rad, y_offset_rad);
+    ComputeAngles(bBoxCenterX, bBoxCenterY, width, height, x_offset_rad, y_offset_rad);
+    
+    // Clean up memory.
     gst_buffer_unmap(buffer, &map);
     gst_sample_unref(sample);
 
-
+    // Save the latest valid data for the next cycle, in case no frame is available.
     old_x_offset_rad = x_offset_rad;
     old_y_offset_rad = y_offset_rad;
     old_obj_size = obj_size;
     return true;
 }
+
+

@@ -1,4 +1,4 @@
-cd ~/Assignment_13/FPGA && \
+cd ~/ESL-demo/FPGA && \
 yosys -p 'synth_ice40 -top TopEntity -json ice40.json' TopEntity.v PWM.v QuadratureEncoder.v && \
 nextpnr-ice40 --hx8k --json ice40.json --pcf ico-jiwy.pcf --asc ice40.asc && \
 sudo modprobe spi-bcm2835 -r && \
@@ -8,7 +8,7 @@ cd ~/icoprog && \
 ./icoprog -R && \
 ./icoprog -p < ice40.bin && \
 sudo modprobe spi-bcm2835 && \
-cd ../Assignment_13/Pi
+cd ../ESL-demo/Pi
 
 
 g++ main.cpp spi_comm.c \

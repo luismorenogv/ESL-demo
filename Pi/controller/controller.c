@@ -1,20 +1,18 @@
-// Filename : controller.c
-// Assumes 20-sim generated functions/variables have been renamed with Pan/Tilt prefixes.
+// controller.c
 
 #include "controller.h"
 
-// Include the renamed submodel headers
 #include "pan/pan_xxsubmod.h"
 #include "tilt/tilt_xxsubmod.h"
 #include <stdbool.h>
 
-// --- Global variables to hold the I/O for each controller ---
+// Global variables to hold the I/O for each controller
 static XXDouble pan_inputs[2];
 static XXDouble pan_outputs[2];
 static XXDouble tilt_inputs[3];
 static XXDouble tilt_outputs[1];
 
-// --- Global state for time ---
+// Global state for time
 static XXDouble g_pan_time = 0.0;
 static XXDouble g_tilt_time = 0.0;
 
@@ -42,12 +40,11 @@ void ControllerStep(XXDouble tiltPos, XXDouble tiltDst,
         ControllerInitialize();
     }
     
-    // --- Step 1: Pan Controller ---
+    // Pan Controller
     
-    // The submodel wrapper handles time and step size internally now.
-    // We just need to pass the current time and the model will use its step size.
-    // We must, however, update the global step size variable before calling.
-    extern XXDouble pan_step_size; // This global is defined in the renamed pan_xxmodel.c
+    // The submodel wrapper handles time and step size internally
+    // Update step size
+    extern XXDouble pan_step_size;
     pan_step_size = dt;
     g_pan_time += dt;
 
@@ -58,9 +55,9 @@ void ControllerStep(XXDouble tiltPos, XXDouble tiltDst,
     // Calculate one step
     PanCalculateSubmodel(pan_inputs, pan_outputs, g_pan_time);
     
-    // --- Step 2: Tilt Controller ---
-    
-    extern XXDouble tilt_step_size; // This global is defined in the renamed tilt_xxmodel.c
+    // Tilt Controller
+    // Update step size
+    extern XXDouble tilt_step_size;
     tilt_step_size = dt;
     g_tilt_time += dt;
 
@@ -78,13 +75,11 @@ void ControllerTerminate(void) {
     TiltTerminateSubmodel(tilt_inputs, tilt_outputs, g_tilt_time);
 }
 
-// --- Getter Functions ---
+// Getter functions
 XXDouble getPanOut(void) {
-    // From pan_xxsubmod.c, output[0] is "corr", output[1] is "out"
     return pan_outputs[1];
 }
 
 XXDouble getTiltOut(void) {
-    // From tilt_xxsubmod.c, output[0] is "out"
     return tilt_outputs[0];
 }
