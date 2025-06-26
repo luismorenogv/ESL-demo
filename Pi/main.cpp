@@ -181,22 +181,23 @@ int main(int argc, char *argv[]) {
         XXDouble pitch_curr_pos_rad = steps2rads(abs_p, (int32_t)pitch_max_steps);
         XXDouble yaw_curr_pos_rad   = steps2rads(abs_y, (int32_t)yaw_max_steps);
 
-        ProcessOneFrame(sink, x_offset_rad, y_offset_rad, obj_size);
+        // Check for new frame
+        if (ProcessOneFrame(sink, x_offset_rad, y_offset_rad, obj_size)){
+            if(obj_size <= MIN_OBJ_SIZE)
+            {
+                // No object, command is to hold current position
+                yaw_dst_rad = yaw_curr_pos_rad;
+                pitch_dst_rad = pitch_curr_pos_rad;
+            }
+            else
+            {
+                // Object found, new destination is current position + offset
+                XXDouble target_yaw = yaw_curr_pos_rad + x_offset_rad;
+                yaw_dst_rad = fmax(0.0, fmin(target_yaw, yaw_max_rad));
 
-        if(obj_size <= MIN_OBJ_SIZE)
-        {
-            // No object, command is to hold current position
-            yaw_dst_rad = yaw_curr_pos_rad;
-            pitch_dst_rad = pitch_curr_pos_rad;
-        }
-        else
-        {
-            // Object found, new destination is current position + offset
-            XXDouble target_yaw = yaw_curr_pos_rad + x_offset_rad;
-            yaw_dst_rad = fmax(0.0, fmin(target_yaw, yaw_max_rad));
-
-            XXDouble target_pitch = pitch_curr_pos_rad - y_offset_rad;
-            pitch_dst_rad = fmax(0.0, fmin(target_pitch, pitch_max_rad));
+                XXDouble target_pitch = pitch_curr_pos_rad - y_offset_rad;
+                pitch_dst_rad = fmax(0.0, fmin(target_pitch, pitch_max_rad));
+            }
         }
 
         ControllerStep(pitch_curr_pos_rad, pitch_dst_rad, yaw_curr_pos_rad, yaw_dst_rad, dt);
