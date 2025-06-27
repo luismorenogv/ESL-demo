@@ -8,6 +8,7 @@ extern "C" {
 #endif
 
 #include "common/xxtypes.h"
+#include <stdint.h>
 
 /* GLOBAL FUNCTIONS */
 
@@ -23,8 +24,10 @@ void ControllerStep(XXDouble tiltPos, XXDouble tiltDst,
 void ControllerTerminate(void);
 
 // Getter functions for the calculated outputs.
-XXDouble getPanOut(void);
-XXDouble getTiltOut(void);
+void getPanOut(uint16_t* pan_duty, uint8_t* pan_dir);
+void getTiltOut(uint16_t* tilt_duty, uint8_t* tilt_dir);
+/*XXDouble getPanOut(void);
+XXDouble getTiltOut(void);*/
 
 #ifdef __cplusplus
 }

@@ -6,6 +6,10 @@
 #include "tilt/tilt_xxsubmod.h"
 #include <stdbool.h>
 
+#define DUTY_BITS 12  //Bits for duty cycle in verilog
+#define MAX_DUTY_PERC 0.2 //Percentage of duty cycle (from 0.00 to 1.00)
+#define MAX_SAFE_DUTY ((uint16_t)(MAX_DUTY_PERC * ((1 << DUTY_BITS) - 1)))
+
 // Global variables to hold the I/O for each controller
 static XXDouble pan_inputs[2];
 static XXDouble pan_outputs[2];
@@ -76,10 +80,12 @@ void ControllerTerminate(void) {
 }
 
 // Getter functions
-XXDouble getPanOut(void) {
-    return pan_outputs[1];
+void getPanOut(uint16_t* pan_duty, uint8_t* pan_dir) {
+    *pan_duty = (uint16_t)(fmin(fabs(pan_outputs[1]),1.0) * MAX_SAFE_DUTY);//pan_outputs[1];
+    *pan_dir  = (pan_outputs[1] >= 0.0) ? 0 : 1;
 }
 
-XXDouble getTiltOut(void) {
-    return tilt_outputs[0];
+void getTiltOut(uint16_t* tilt_duty, uint8_t* tilt_dir) {
+    *tilt_duty = (uint16_t)(fmin(fabs(tilt_outputs[0]),1.0) * MAX_SAFE_DUTY);//tilt_outputs[0];
+    *tilt_dir  = (tilt_outputs[0] >= 0.0) ? 0 : 1;
 }

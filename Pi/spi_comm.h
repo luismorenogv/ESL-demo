@@ -30,20 +30,24 @@ typedef struct PwmStatus {
 int SpiOpen(unsigned spi_chan, unsigned spi_baud, unsigned spi_flags);
 
 // Cleans up the SPI interface.
-int SpiClose(int fd);
+int SpiClose(/*int fd*/);
 
 // Send new PWM values for a specific encoder (pitch or yaw). 
-int SendPwmCmd(int fd, encoder_t unit, uint16_t duty, uint8_t enable, uint8_t dir);
+int SendPwmCmd(/*int fd,*/ encoder_t unit, uint16_t duty, uint8_t enable, uint8_t dir);
 
 // Send new PWM values for both encoders (pitch and yaw) at once.
-int SendAllPwmCmd(int fd, uint16_t pitch_duty, uint8_t pitch_enable, uint8_t pitch_dir,
+int SendAllPwmCmd(/*int fd,*/ uint16_t pitch_duty, uint8_t pitch_enable, uint8_t pitch_dir,
                   uint16_t yaw_duty, uint8_t yaw_enable, uint8_t yaw_dir);
 
 // Reads the current position of the specified encoder/s (pitch, yaw or both).
-int ReadPositionCmd(int fd, encoder_t unit, int32_t *pitch_pos, int32_t *yaw_pos);
+int ReadPositionCmd(/*int fd,*/ encoder_t unit, int32_t *pitch_pos, int32_t *yaw_pos);
 
 // Reads the current status of the PWM for both encoders (pitch and yaw).
-int CheckPwmStatus(int fd, PwmStatus *pitch_status, PwmStatus *yaw_status);
+int CheckPwmStatus(/*int fd,*/ PwmStatus *pitch_status, PwmStatus *yaw_status);
+
+int error(const char *msg, const int e_code/*, int fd*/);
+
+int StopMotors();
 
 #ifdef __cplusplus
 }

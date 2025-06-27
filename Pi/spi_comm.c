@@ -16,7 +16,9 @@
 #define CMD_READ_ALL_POSITIONS 0x22
 #define CHECK_PWM_STATUS 0x30
 
-static int SpiXfer(int fd, unsigned speed, uint8_t *tx_buf, uint8_t *rx_buf, unsigned count) {
+int fd = -1;
+
+static int SpiXfer(/*int fd, */unsigned speed, uint8_t *tx_buf, uint8_t *rx_buf, unsigned count) {
     struct spi_ioc_transfer tr = {
         .tx_buf        = (unsigned long)tx_buf,
         .rx_buf        = (unsigned long)rx_buf,
@@ -32,7 +34,7 @@ static int SpiXfer(int fd, unsigned speed, uint8_t *tx_buf, uint8_t *rx_buf, uns
 }
 
 int SpiOpen(unsigned spi_chan, unsigned spi_baud, unsigned spi_flags) {
-    int fd;
+    //int fd;
     char dev[32];
     char mode = spi_flags & 0x03;
     char bits = SPI_BITS_PER_WORD;
@@ -53,11 +55,11 @@ int SpiOpen(unsigned spi_chan, unsigned spi_baud, unsigned spi_flags) {
     return fd;
 }
 
-int SpiClose(int fd) {
+int SpiClose(/*int fd*/) {
     return close(fd);
 }
 
-int SendPwmCmd(int fd, encoder_t unit, uint16_t duty, uint8_t enable, uint8_t dir) {
+int SendPwmCmd(/*int fd, */encoder_t unit, uint16_t duty, uint8_t enable, uint8_t dir) {
     uint8_t tx[3], rx[3];
     uint8_t cmd = (unit == UnitPitch) ? CMD_WRITE_PITCH_PWM : CMD_WRITE_YAW_PWM;
 
@@ -68,7 +70,7 @@ int SendPwmCmd(int fd, encoder_t unit, uint16_t duty, uint8_t enable, uint8_t di
     return SpiXfer(fd, SPI_SPEED_HZ, tx, rx, 3);
 }
 
-int SendAllPwmCmd(int fd, uint16_t pitch_duty, uint8_t pitch_enable, uint8_t pitch_dir,
+int SendAllPwmCmd(/*int fd, */uint16_t pitch_duty, uint8_t pitch_enable, uint8_t pitch_dir,
                   uint16_t yaw_duty, uint8_t yaw_enable, uint8_t yaw_dir) {
     uint8_t tx[5], rx[5];
     tx[0] = CMD_WRITE_ALL_PWM;
@@ -77,10 +79,10 @@ int SendAllPwmCmd(int fd, uint16_t pitch_duty, uint8_t pitch_enable, uint8_t pit
     tx[3] = (uint8_t)(yaw_duty & 0xFF);
     tx[4] = (uint8_t)(((yaw_enable & 0x1) << 7) | ((yaw_dir & 0x1) << 6) | (((yaw_duty >> 8) & 0x0F) << 2));
     memset(rx, 0, sizeof(rx));
-    return SpiXfer(fd, SPI_SPEED_HZ, tx, rx, 5);
+    return SpiXfer(/*fd, */SPI_SPEED_HZ, tx, rx, 5);
 }
 
-int ReadPositionCmd(int fd, encoder_t unit, int32_t *pitch_pos, int32_t *yaw_pos) {
+int ReadPositionCmd(/*int fd, */encoder_t unit, int32_t *pitch_pos, int32_t *yaw_pos) {
     int32_t *out_pos = (unit == UnitPitch) ? pitch_pos : (unit == UnitYaw) ? yaw_pos : NULL;
     uint8_t byte_size = (unit == UnitAll) ? 9 : 5;
     uint8_t tx[byte_size], rx[byte_size];
@@ -88,7 +90,7 @@ int ReadPositionCmd(int fd, encoder_t unit, int32_t *pitch_pos, int32_t *yaw_pos
     memset(rx, 0, sizeof(rx));
     tx[0] = (unit == UnitPitch) ? CMD_READ_PITCH_POS : (unit == UnitYaw) ? CMD_READ_YAW_POS : CMD_READ_ALL_POSITIONS;
 
-    int err = SpiXfer(fd, SPI_SPEED_HZ, tx, rx, byte_size);
+    int err = SpiXfer(/*fd, */SPI_SPEED_HZ, tx, rx, byte_size);
     if (err < 0) return err;
 
     if (unit == UnitAll) {
@@ -103,9 +105,9 @@ int ReadPositionCmd(int fd, encoder_t unit, int32_t *pitch_pos, int32_t *yaw_pos
     return 0;
 }
 
-int CheckPwmStatus(int fd, PwmStatus *pitch_status, PwmStatus *yaw_status) {
+int CheckPwmStatus(/*int fd, */PwmStatus *pitch_status, PwmStatus *yaw_status) {
     uint8_t tx[5] = { CHECK_PWM_STATUS }, rx[5] = {0};
-    int err = SpiXfer(fd, SPI_SPEED_HZ, tx, rx, 5);
+    int err = SpiXfer(/*fd, */SPI_SPEED_HZ, tx, rx, 5);
     if (err < 0) return err;
 
     pitch_status->enable = (rx[1] >> 7) & 0x01;
@@ -116,3 +118,16 @@ int CheckPwmStatus(int fd, PwmStatus *pitch_status, PwmStatus *yaw_status) {
     yaw_status->duty     = ((rx[3] >> 2) & 0x0F) << 8 | rx[4];
     return 0;
 }
+
+int error(const char *msg, const int e_code/*, int fd*/) {
+    fprintf(stderr, "Error %i: %s\n", e_code, msg);
+    if (fd >= 0) SpiClose(fd);
+    return e_code;
+}
+
+int StopMotors()
+{
+    return SendAllPwmCmd(0,0,0, 0,0,0);
+}
+
+int packAndSendPWM(double )

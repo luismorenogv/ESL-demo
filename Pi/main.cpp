@@ -11,102 +11,18 @@
 #include "controller/controller.h"
 #include "controller/steps2rads.h"
 #include "img_proc/img_proc.hpp"
+#include "homing.h"
 
 
 #define ENCODER_ERROR_TOLERANCE  2
 #define HOMING_STALL_THRESHOLD  50
-#define MAX_SAFE_DUTY  ((uint16_t)(0.2 * ((1 << 12) - 1)))
+//#define MAX_SAFE_DUTY  ((uint16_t)(0.2 * ((1 << 12) - 1)))
 
 #define MIN_OBJ_SIZE 2000
 
 // Forward declaration
-int error(const char *msg, const int e_code, int fd);
 
-void HomeBothAxes(int spi_fd, int32_t* pitch_offset_out, int32_t* yaw_offset_out,
-                                uint32_t* pitch_max_steps, uint32_t* yaw_max_steps) {
-    printf("Homing both axes simultaneously...\n");
 
-    SendAllPwmCmd(spi_fd, 0, 0, 0, 0, 0, 0); // Stop motors before homing
-    
-    uint16_t homing_duty = (uint16_t)(0.15 * ((1 << 12) - 1));
-    
-    int32_t current_pitch = 0, current_yaw = 0;
-    
-    if (ReadPositionCmd(spi_fd, UnitAll, &current_pitch, &current_yaw) < 0) {
-        fprintf(stderr, "Homing: Failed initial read.\n");
-    }
-    int32_t last_pitch = current_pitch;
-    int32_t last_yaw = current_yaw;
-    
-    int pitch_stall_counter = 0;
-    int yaw_stall_counter = 0;
-    
-    bool pitch_homed = false;
-    bool yaw_homed = false;
-
-    for (uint8_t i = 0; i < 2; i++){
-        while (!pitch_homed || !yaw_homed) {
-            uint16_t pitch_drive_duty = pitch_homed ? 0 : homing_duty;
-            uint16_t yaw_drive_duty = yaw_homed ? 0 : homing_duty;
-            uint8_t dir = i == 0 ? 1 : 0; // Reverse direction on start
-
-            SendAllPwmCmd(spi_fd, pitch_drive_duty, !pitch_homed, dir, 
-                                yaw_drive_duty, !yaw_homed, dir);
-        
-            if (ReadPositionCmd(spi_fd, UnitAll, &current_pitch, &current_yaw) < 0) {
-                fprintf(stderr, "Homing: Failed to read position, retrying...\n");
-                usleep(10000);
-                continue;
-            }
-
-            if (!pitch_homed) {
-                if (abs(current_pitch - last_pitch) < ENCODER_ERROR_TOLERANCE) {
-                    pitch_stall_counter++;
-                } else {
-                    pitch_stall_counter = 0;
-                }
-                last_pitch = current_pitch;
-
-                if (pitch_stall_counter >= HOMING_STALL_THRESHOLD) {
-                    pitch_homed = true;
-                    if (i == 0){
-                        *pitch_offset_out = current_pitch;
-                        printf("Pitch axis homed at encoder value: %d\n", *pitch_offset_out);
-                    } else {
-                        *pitch_max_steps = abs(current_pitch - *pitch_offset_out);
-                    }
-                }
-            }
-
-            if (!yaw_homed) {
-                if (abs(current_yaw - last_yaw) < ENCODER_ERROR_TOLERANCE) {
-                    yaw_stall_counter++;
-                } else {
-                    yaw_stall_counter = 0;
-                }
-                last_yaw = current_yaw;
-
-                if (yaw_stall_counter >= HOMING_STALL_THRESHOLD) {
-                    yaw_homed = true;
-                    if (i == 0){
-                        *yaw_offset_out = current_yaw;
-                        printf("Yaw axis homed at encoder value: %d\n", *yaw_offset_out);
-                    } else {
-                        *yaw_max_steps = abs(current_yaw - *yaw_offset_out);
-                    }
-                }
-            }
-            usleep(10000);
-        }
-        // Reset values
-        yaw_homed = false;
-        pitch_homed = false;
-        pitch_stall_counter = 0;
-        yaw_stall_counter = 0;
-    }
-    printf("Homing complete for both axes.\n");
-    SendAllPwmCmd(spi_fd, 0, 0, 0, 0, 0, 0); // Stop motors
-}
 
 int main(int argc, char *argv[]) {
     if (argc != 2) {
@@ -132,7 +48,7 @@ int main(int argc, char *argv[]) {
     // 3) Homing procedure
     int32_t pitch_offset, yaw_offset;
     uint32_t pitch_max_steps, yaw_max_steps;
-    HomeBothAxes(fd, &pitch_offset, &yaw_offset, 
+    HomeBothAxes(/*fd,*/ &pitch_offset, &yaw_offset, 
                    &pitch_max_steps, &yaw_max_steps);
 
     // Pre-compute useful encoder positions
@@ -198,36 +114,39 @@ int main(int argc, char *argv[]) {
         ControllerStep(pitch_curr_pos_rad, pitch_dst_rad, yaw_curr_pos_rad, yaw_dst_rad, dt);
 
         // read back
-        XXDouble pan_out  = getPanOut();  // Corresponds to Yaw
-        XXDouble tilt_out = getTiltOut(); // Corresponds to Pitch
-        printf("Tilt Out: %.2f\n", tilt_out);
+        //XXDouble pan_out  = getPanOut();  // Corresponds to Yaw
+        //XXDouble tilt_out = getTiltOut(); // Corresponds to Pitch
+        //printf("Tilt Out: %.2f\n", tilt_out);
+        uint16_t pan_duty;
+        uint8_t  pan_dir;
+        uint16_t tilt_duty;
+        uint8_t  tilt_dir;
+
+        getPanOut(&pan_duty, &pan_dir);
+        getTiltOut(&tilt_duty, &tilt_dir);
         // printf("Controller Output: Pitch=%.2f rad, Yaw=%.2f rad\n", tilt_out, pan_out);
 
         // pack PWM
-        uint16_t pan_duty = (uint16_t)(fmin(fabs(pan_out),1.0) * MAX_SAFE_DUTY);
+        /*uint16_t pan_duty = (uint16_t)(fmin(fabs(pan_out),1.0) * MAX_SAFE_DUTY);
         uint8_t  pan_dir  = (pan_out >= 0.0) ? 0 : 1;
         uint16_t tlt_duty = (uint16_t)(fmin(fabs(tilt_out),1.0) * MAX_SAFE_DUTY);
-        uint8_t  tlt_dir  = (tilt_out >= 0.0) ? 0 : 1;
+        uint8_t  tlt_dir  = (tilt_out >= 0.0) ? 0 : 1;*/
 
         //printf("\nPWM: Pitch=%d (dir=%d), Yaw=%d (dir=%d)\n", tlt_duty, tlt_dir, pan_duty, pan_dir);
 
         // send PWM
         SendAllPwmCmd(fd,
-                      tlt_duty, /*en=*/1, tlt_dir,  // Pitch (Tilt)
+                      tilt_duty, /*en=*/1, tilt_dir,  // Pitch (Tilt)
                       pan_duty, /*en=*/1, pan_dir); // Yaw (Pan)
 
     }
 
     // 7) stop & close
     printf("Stopping motors and closing SPI.\n");
-    SendAllPwmCmd(fd, 0,0,0, 0,0,0);
+    //SendAllPwmCmd(fd, 0,0,0, 0,0,0);
+    StopMotors();
     SpiClose(fd);
     CleanupGstreamerPipeline(pipeline);
     return 0;
 }
 
-int error(const char *msg, const int e_code, int fd) {
-    fprintf(stderr, "Error %i: %s\n", e_code, msg);
-    if (fd >= 0) SpiClose(fd);
-    return e_code;
-}
