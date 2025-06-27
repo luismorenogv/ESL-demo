@@ -15,21 +15,21 @@ std::atomic<bool> g_run(true);
 TargetData g_target_data;
 std::mutex g_target_mutex;
 
-
-// Low-frequency vision thread
 void vision_thread_func(GstElement *sink) {
     printf("Vision thread started.\n");
     
     double x_offset, y_offset, obj_size;
     
     while(g_run) {
+        // Attempt to process a new frame. 
         if (ProcessOneFrame(sink, x_offset, y_offset, obj_size)){
-            // Update shared data (with mutex lock)
+            // Update the shared data.
             {
                 std::lock_guard<std::mutex> lock(g_target_mutex);
                 g_target_data.x_offset_rad = x_offset;
                 g_target_data.y_offset_rad = y_offset;
                 g_target_data.obj_size = obj_size;
+                g_target_data.new_frame = true; // Indicate that a new frame was processed
             }
         }
 
@@ -114,27 +114,23 @@ bool ProcessOneFrame(GstElement* appsink, double& x_offset_rad, double& y_offset
     // Try to get a new video frame from the GStreamer pipeline. Non-blocking.
     GstSample* sample = gst_app_sink_try_pull_sample(GST_APP_SINK(appsink), 0);
 
-    // Static variables to remember the last good values.
-    static int width, height;
-    static double old_x_offset_rad = 0, old_y_offset_rad = 0, old_obj_size = 0;
-
-    // If no new frame is available, return the previous data and exit.
+    // If no new frame is available, do nothing and report failure.
     if (!sample) {
-        x_offset_rad = old_x_offset_rad;
-        y_offset_rad = old_y_offset_rad;
-        obj_size     = old_obj_size;
         return false;
     }
 
-    // Get the raw image data (buffer) and its properties (caps).
+    // A new frame is available, proceed with processing.
     GstBuffer* buffer = gst_sample_get_buffer(sample);
     GstCaps* caps = gst_sample_get_caps(sample);
     GstStructure* s = gst_caps_get_structure(caps, 0);
-    gst_structure_get_int(s, "width", &width);
-    gst_structure_get_int(s, "height", &height);
-    
-    // Map the GStreamer buffer to memory so OpenCV can access it.
     GstMapInfo map;
+    
+    static int width = 0, height = 0;
+    if (width == 0) { // Get dimensions once
+        gst_structure_get_int(s, "width", &width);
+        gst_structure_get_int(s, "height", &height);
+    }
+    
     if (!gst_buffer_map(buffer, &map, GST_MAP_READ)) {
         gst_sample_unref(sample);
         return false;
@@ -168,24 +164,19 @@ bool ProcessOneFrame(GstElement* appsink, double& x_offset_rad, double& y_offset
         int largeContIndex = 0;
         for (size_t i = 0; i < contours.size(); ++i) {
             area = cv::contourArea(contours[i]);
-            if (area < 500) continue;
             if (area > max_area) {
                 max_area = area;
                 largeContIndex = i;
             }
         }
-
+        
         // Create a bounding box around green object
         cv::Rect boundingBox = cv::boundingRect(contours[largeContIndex]);
         // Take central coordinates of the bounding box
         bBoxCenterX = boundingBox.x + boundingBox.width / 2;
         bBoxCenterY = boundingBox.y + boundingBox.height / 2;
-    } else {
-        max_area = 0;
-        bBoxCenterX = 0;
-        bBoxCenterY = 0;
     }
-
+    
     // Store the object's area and calculate its angular offset from the center.
     obj_size = max_area;
     ComputeAngles(bBoxCenterX, bBoxCenterY, width, height, x_offset_rad, y_offset_rad);
@@ -193,12 +184,10 @@ bool ProcessOneFrame(GstElement* appsink, double& x_offset_rad, double& y_offset
     // Clean up memory.
     gst_buffer_unmap(buffer, &map);
     gst_sample_unref(sample);
-
-    // Save the latest valid data for the next cycle, in case no frame is available.
-    old_x_offset_rad = x_offset_rad;
-    old_y_offset_rad = y_offset_rad;
-    old_obj_size = obj_size;
+    
+    // Report that a new frame was processed successfully.
     return true;
 }
+
 
 

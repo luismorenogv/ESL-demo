@@ -19,9 +19,10 @@ struct TargetData {
     XXDouble x_offset_rad = 0.0;
     XXDouble y_offset_rad = 0.0;
     double obj_size = 0.0;
+    bool new_frame = false;
 };
 
-// Global variables for thread communicatio
+// Global variables for thread communication
 extern std::atomic<bool> g_run;
 extern TargetData g_target_data;
 extern std::mutex g_target_mutex;

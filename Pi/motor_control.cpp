@@ -114,11 +114,25 @@ void control_thread_func(int spi_fd, int32_t pitch_offset, int32_t yaw_offset,
 
     XXDouble dt = (XXDouble)PERIOD_NS / 1000000000.0;
 
+    // Forward declaration of loop variables
+    int32_t raw_p, raw_y, abs_p, abs_y; 
+    XXDouble pitch_curr_pos_rad, yaw_curr_pos_rad, pitch_dst_rad, yaw_dst_rad, pan_out, tilt_out;
+    TargetData current_target;
+    uint16_t pan_duty, tlt_duty;
+    uint8_t pan_dir, tlt_dir;
+
+    // Initialize destination positions to the middle of the range
+    pitch_dst_rad = steps2rads((int32_t)pitch_max_steps/2, (int32_t)pitch_max_steps);
+    yaw_dst_rad   = steps2rads((int32_t)yaw_max_steps/2, (int32_t)yaw_max_steps);
+
     while (g_run) {
-        TargetData current_target;
         {
             std::lock_guard<std::mutex> lock(g_target_mutex);
             current_target = g_target_data;
+                if (g_target_data.new_frame) {
+                    // Reset the new frame flag
+                    g_target_data.new_frame = false;
+            }
         }
 
         int32_t raw_p, raw_y;
@@ -129,32 +143,33 @@ void control_thread_func(int spi_fd, int32_t pitch_offset, int32_t yaw_offset,
         }
 
         // Convert encoder readings to radians
-        int32_t abs_p = raw_p - pitch_offset;
-        int32_t abs_y = raw_y - yaw_offset;
-        XXDouble pitch_curr_pos_rad = steps2rads(abs_p, (int32_t)pitch_max_steps);
-        XXDouble yaw_curr_pos_rad   = steps2rads(abs_y, (int32_t)yaw_max_steps);
+        abs_p = raw_p - pitch_offset;
+        abs_y = raw_y - yaw_offset;
+        pitch_curr_pos_rad = steps2rads(abs_p, (int32_t)pitch_max_steps);
+        yaw_curr_pos_rad   = steps2rads(abs_y, (int32_t)yaw_max_steps);
 
         // Set destination based on object size
-        XXDouble pitch_dst_rad, yaw_dst_rad;
-        if (current_target.obj_size <= MIN_OBJ_SIZE) {
-            pitch_dst_rad = pitch_curr_pos_rad;
-            yaw_dst_rad   = yaw_curr_pos_rad;
-        } else {
-            yaw_dst_rad   = fmax(0.0, fmin(yaw_curr_pos_rad + current_target.x_offset_rad, yaw_max_rad));
-            pitch_dst_rad = fmax(0.0, fmin(pitch_curr_pos_rad - current_target.y_offset_rad, pitch_max_rad));
+        if (current_target.new_frame) {
+            if (current_target.obj_size <= MIN_OBJ_SIZE) {
+                pitch_dst_rad = pitch_curr_pos_rad;
+                yaw_dst_rad   = yaw_curr_pos_rad;
+            } else {
+                yaw_dst_rad   = fmax(0.0, fmin(yaw_curr_pos_rad + current_target.x_offset_rad, yaw_max_rad));
+                pitch_dst_rad = fmax(0.0, fmin(pitch_curr_pos_rad - current_target.y_offset_rad, pitch_max_rad));
+            }
         }
 
         ControllerStep(pitch_curr_pos_rad, pitch_dst_rad, yaw_curr_pos_rad, yaw_dst_rad, dt);
 
         // Get controller outputs
-        XXDouble pan_out  = getPanOut();
-        XXDouble tilt_out = getTiltOut();
+        pan_out  = getPanOut();
+        tilt_out = getTiltOut();
 
         // Convert to PWM signals
-        uint16_t pan_duty = (uint16_t)(fmin(fabs(pan_out), 1.0) * MAX_SAFE_DUTY);
-        uint8_t  pan_dir  = (pan_out >= 0.0) ? 0 : 1;
-        uint16_t tlt_duty = (uint16_t)(fmin(fabs(tilt_out), 1.0) * MAX_SAFE_DUTY);
-        uint8_t  tlt_dir  = (tilt_out >= 0.0) ? 0 : 1;
+        pan_duty = (uint16_t)(fmin(fabs(pan_out), 1.0) * MAX_SAFE_DUTY);
+        pan_dir  = (pan_out >= 0.0) ? 0 : 1;
+        tlt_duty = (uint16_t)(fmin(fabs(tilt_out), 1.0) * MAX_SAFE_DUTY);
+        tlt_dir  = (tilt_out >= 0.0) ? 0 : 1;
 
         // Send PWM command
         SendAllPwmCmd(spi_fd, tlt_duty, 1, tlt_dir, pan_duty, 1, pan_dir);
@@ -170,3 +185,4 @@ void control_thread_func(int spi_fd, int32_t pitch_offset, int32_t yaw_offset,
 
     printf("Control thread finished.\n");
 }
+
