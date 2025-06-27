@@ -22,7 +22,7 @@
 #define Pan_MODEL_H
 
 /* Our own include files */
-#include "xxtypes.h"
+#include "../common/xxtypes.h"
 
 /* Simulation variables */
 extern PanDouble pan_start_time;

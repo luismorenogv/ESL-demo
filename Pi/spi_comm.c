@@ -67,7 +67,7 @@ int SendPwmCmd(/*int fd, */encoder_t unit, uint16_t duty, uint8_t enable, uint8_
     tx[1] = (uint8_t)(duty & 0xFF);
     tx[2] = (uint8_t)(((enable & 0x1) << 7) | ((dir & 0x1) << 6) | (((duty >> 8) & 0x0F) << 2));
     memset(rx, 0, sizeof(rx));
-    return SpiXfer(fd, SPI_SPEED_HZ, tx, rx, 3);
+    return SpiXfer(/*fd, */SPI_SPEED_HZ, tx, rx, 3);
 }
 
 int SendAllPwmCmd(/*int fd, */uint16_t pitch_duty, uint8_t pitch_enable, uint8_t pitch_dir,
@@ -121,7 +121,7 @@ int CheckPwmStatus(/*int fd, */PwmStatus *pitch_status, PwmStatus *yaw_status) {
 
 int error(const char *msg, const int e_code/*, int fd*/) {
     fprintf(stderr, "Error %i: %s\n", e_code, msg);
-    if (fd >= 0) SpiClose(fd);
+    if (fd >= 0) SpiClose(/*fd*/);
     return e_code;
 }
 
@@ -129,5 +129,3 @@ int StopMotors()
 {
     return SendAllPwmCmd(0,0,0, 0,0,0);
 }
-
-int packAndSendPWM(double )

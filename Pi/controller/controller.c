@@ -5,6 +5,7 @@
 #include "pan/pan_xxsubmod.h"
 #include "tilt/tilt_xxsubmod.h"
 #include <stdbool.h>
+#include <math.h>
 
 #define DUTY_BITS 12  //Bits for duty cycle in verilog
 #define MAX_DUTY_PERC 0.2 //Percentage of duty cycle (from 0.00 to 1.00)

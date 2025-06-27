@@ -22,7 +22,7 @@
 #define Tilt_MODEL_H
 
 /* Our own include files */
-#include "xxtypes.h"
+#include "../common/xxtypes.h"
 
 /* Simulation variables */
 extern TiltDouble tilt_start_time;

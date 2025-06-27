@@ -26,7 +26,7 @@ that are supplied for computation.
 #define TILT_INTEG_H
 
 /* 20-sim include files */
-#include "xxtypes.h"
+#include"../common/xxtypes.h"
 
 /* the chosen integration method */
 #define Discrete_METHOD

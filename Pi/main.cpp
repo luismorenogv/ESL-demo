@@ -14,8 +14,8 @@
 #include "homing.h"
 
 
-#define ENCODER_ERROR_TOLERANCE  2
-#define HOMING_STALL_THRESHOLD  50
+/*#define ENCODER_ERROR_TOLERANCE  2
+#define HOMING_STALL_THRESHOLD  50*/
 //#define MAX_SAFE_DUTY  ((uint16_t)(0.2 * ((1 << 12) - 1)))
 
 #define MIN_OBJ_SIZE 2000
@@ -81,8 +81,8 @@ int main(int argc, char *argv[]) {
 
         // printf("Loop time: %.3f seconds\n", dt);
         int32_t raw_p, raw_y;
-        if (ReadPositionCmd(fd, UnitAll, &raw_p, &raw_y) < 0)
-            return error("Failed to read position", 2, fd);
+        if (ReadPositionCmd(/*fd, */UnitAll, &raw_p, &raw_y) < 0)
+            return error("Failed to read position", 2/*, fd*/);
         
         // Calculate absolute position in steps, relative to the homed zero
         int32_t abs_p = raw_p - pitch_offset;
@@ -135,7 +135,7 @@ int main(int argc, char *argv[]) {
         //printf("\nPWM: Pitch=%d (dir=%d), Yaw=%d (dir=%d)\n", tlt_duty, tlt_dir, pan_duty, pan_dir);
 
         // send PWM
-        SendAllPwmCmd(fd,
+        SendAllPwmCmd(/*fd,*/
                       tilt_duty, /*en=*/1, tilt_dir,  // Pitch (Tilt)
                       pan_duty, /*en=*/1, pan_dir); // Yaw (Pan)
 
@@ -145,7 +145,7 @@ int main(int argc, char *argv[]) {
     printf("Stopping motors and closing SPI.\n");
     //SendAllPwmCmd(fd, 0,0,0, 0,0,0);
     StopMotors();
-    SpiClose(fd);
+    SpiClose(/*fd*/);
     CleanupGstreamerPipeline(pipeline);
     return 0;
 }

@@ -1,5 +1,14 @@
 
+#include "spi_comm.h"
 #include "homing.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <stdint.h>
+#include <math.h>
+#include <time.h>
+#define ENCODER_ERROR_TOLERANCE  2
+#define HOMING_STALL_THRESHOLD  50
 
 void HomeBothAxes(/*int spi_fd, */int32_t* pitch_offset_out, int32_t* yaw_offset_out,
                                 uint32_t* pitch_max_steps, uint32_t* yaw_max_steps) {

@@ -14,7 +14,7 @@ extern "C" {
 
 #include <stdint.h>
 #include <math.h>
-#include "xxtypes.h"
+#include "common/xxtypes.h"
 
 XXDouble steps2rads(int32_t steps, int32_t max_steps)
 {
