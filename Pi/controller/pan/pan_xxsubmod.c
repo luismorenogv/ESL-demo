@@ -18,7 +18,7 @@
 /* 20-sim include files */
 #include "pan_xxmodel.h"
 #include "pan_integ.h"
-#include "xxfuncs.h"
+//#include "xxfuncs.h"
 #include "pan_xxsubmod.h"
 
 /* The submodel I/O variables */

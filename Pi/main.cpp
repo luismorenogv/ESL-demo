@@ -12,12 +12,9 @@
 #include "controller/steps2rads.h"
 #include "img_proc/img_proc.hpp"
 
-#define LOOP_HZ         1000
-#define PERIOD_NS       (1000000000L / LOOP_HZ)
-#define DEADBAND_CNT    5
+
 #define ENCODER_ERROR_TOLERANCE  2
 #define HOMING_STALL_THRESHOLD  50
-#define RAD_TOLERANCE    (0.1)
 #define MAX_SAFE_DUTY  ((uint16_t)(0.2 * ((1 << 12) - 1)))
 
 #define MIN_OBJ_SIZE 2000
@@ -124,11 +121,9 @@ int main(int argc, char *argv[]) {
     // pitch and yaw destination
     XXDouble pitch_dst_rad;
     XXDouble yaw_dst_rad;
-    XXDouble pitch_dst_rad_old;
-    XXDouble yaw_dst_rad_old;
 
     // Initialize offsets in radians
-    XXDouble x_offset_rad = 0.0, y_offset_rad = 0.0;
+    XXDouble x_ball_offset_rad = 0.0, y_ball_offset_rad = 0.0;
 
     // 2) open SPI
     int fd = SpiOpen(SPI_CHANNEL, SPI_SPEED_HZ, SPI_MODE);
@@ -141,10 +136,10 @@ int main(int argc, char *argv[]) {
                    &pitch_max_steps, &yaw_max_steps);
 
     // Pre-compute useful encoder positions
-    XXDouble pitch_middle_rad = steps2rads((int32_t)(pitch_max_steps/2), 
+    /*XXDouble pitch_middle_rad = steps2rads((int32_t)(pitch_max_steps/2), 
                                             (int32_t)pitch_max_steps);
     XXDouble yaw_middle_rad = steps2rads((int32_t)(yaw_max_steps/2), 
-                                          (int32_t)yaw_max_steps);
+                                          (int32_t)yaw_max_steps);*/
     XXDouble pitch_max_rad = steps2rads((int32_t)pitch_max_steps, 
                                         (int32_t)pitch_max_steps);
     XXDouble yaw_max_rad = steps2rads((int32_t)yaw_max_steps, 
@@ -182,7 +177,7 @@ int main(int argc, char *argv[]) {
         XXDouble yaw_curr_pos_rad   = steps2rads(abs_y, (int32_t)yaw_max_steps);
 
         // Check for new frame
-        if (ProcessOneFrame(sink, x_offset_rad, y_offset_rad, obj_size)){
+        if (ProcessOneFrame(sink, x_ball_offset_rad, y_ball_offset_rad, obj_size)){
             if(obj_size <= MIN_OBJ_SIZE)
             {
                 // No object, command is to hold current position
@@ -192,10 +187,10 @@ int main(int argc, char *argv[]) {
             else
             {
                 // Object found, new destination is current position + offset
-                XXDouble target_yaw = yaw_curr_pos_rad + x_offset_rad;
-                yaw_dst_rad = fmax(0.0, fmin(target_yaw, yaw_max_rad));
+                XXDouble target_yaw = yaw_curr_pos_rad + x_ball_offset_rad;
+                yaw_dst_rad = fmax(0.0, fmin(target_yaw, yaw_max_rad)); //TODO shouldnt this be the offset?
 
-                XXDouble target_pitch = pitch_curr_pos_rad - y_offset_rad;
+                XXDouble target_pitch = pitch_curr_pos_rad - y_ball_offset_rad;
                 pitch_dst_rad = fmax(0.0, fmin(target_pitch, pitch_max_rad));
             }
         }

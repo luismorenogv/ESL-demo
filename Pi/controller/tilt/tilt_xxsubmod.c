@@ -18,7 +18,7 @@
 /* 20-sim include files */
 #include "tilt_xxmodel.h"
 #include "tilt_integ.h"
-#include "xxfuncs.h"
+//#include "xxfuncs.h"
 #include "tilt_xxsubmod.h"
 
 /* The submodel I/O variables */

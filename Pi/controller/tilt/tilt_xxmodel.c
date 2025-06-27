@@ -39,7 +39,7 @@
 
 /* 20-sim include files */
 #include "tilt_xxmodel.h"
-#include "xxfuncs.h"
+//#include "xxfuncs.h"
 
 /* the global variables */
 TiltDouble tilt_start_time = 0.0;
