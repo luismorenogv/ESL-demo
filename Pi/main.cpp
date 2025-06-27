@@ -115,37 +115,34 @@ int main(int argc, char *argv[]) {
     }
     GstElement *pipeline, *sink;
 
-    int32_t pitch_steps_target;
-    int32_t yaw_steps_target;
-
-    // pitch and yaw destination
-    XXDouble pitch_dst_rad;
-    XXDouble yaw_dst_rad;
-
     // Initialize offsets in radians
     XXDouble x_ball_offset_rad = 0.0, y_ball_offset_rad = 0.0;
-
+    
     // 2) open SPI
     int fd = SpiOpen(SPI_CHANNEL, SPI_SPEED_HZ, SPI_MODE);
     if (fd < 0) return 1;
-
+    
     // 3) Homing procedure
     int32_t pitch_offset, yaw_offset;
     uint32_t pitch_max_steps, yaw_max_steps;
     HomeBothAxes(fd, &pitch_offset, &yaw_offset, 
-                   &pitch_max_steps, &yaw_max_steps);
-
+        &pitch_max_steps, &yaw_max_steps);
+        
     // Pre-compute useful encoder positions
-    /*XXDouble pitch_middle_rad = steps2rads((int32_t)(pitch_max_steps/2), 
+    XXDouble pitch_middle_rad = steps2rads((int32_t)(pitch_max_steps/2), 
                                             (int32_t)pitch_max_steps);
     XXDouble yaw_middle_rad = steps2rads((int32_t)(yaw_max_steps/2), 
-                                          (int32_t)yaw_max_steps);*/
+                                          (int32_t)yaw_max_steps);
     XXDouble pitch_max_rad = steps2rads((int32_t)pitch_max_steps, 
                                         (int32_t)pitch_max_steps);
     XXDouble yaw_max_rad = steps2rads((int32_t)yaw_max_steps, 
                                       (int32_t)yaw_max_steps);
 
+    // pitch and yaw destination
+    XXDouble pitch_dst_rad = pitch_middle_rad;
+    XXDouble yaw_dst_rad = yaw_middle_rad;
     double obj_size;
+
     // 4) init your C controller
     ControllerInitialize();
     if (InitGstreamerPipeline(argv[1], &pipeline, &sink) != 0) return -1;
@@ -157,12 +154,6 @@ int main(int argc, char *argv[]) {
 
     // 6) main loop
     while (1) {
-        // Timing calculation
-        clock_gettime(CLOCK_MONOTONIC, &current_time);
-        dt = (current_time.tv_sec - last_time.tv_sec) + 
-             (current_time.tv_nsec - last_time.tv_nsec) / 1000000000.0;
-        last_time = current_time;
-
         // printf("Loop time: %.3f seconds\n", dt);
         int32_t raw_p, raw_y;
         if (ReadPositionCmd(fd, UnitAll, &raw_p, &raw_y) < 0)
@@ -190,10 +181,15 @@ int main(int argc, char *argv[]) {
                 XXDouble target_yaw = yaw_curr_pos_rad + x_ball_offset_rad;
                 yaw_dst_rad = fmax(0.0, fmin(target_yaw, yaw_max_rad)); //TODO shouldnt this be the offset?
 
-                XXDouble target_pitch = pitch_curr_pos_rad - y_ball_offset_rad;
+                XXDouble target_pitch = pitch_curr_pos_rad + y_ball_offset_rad;
                 pitch_dst_rad = fmax(0.0, fmin(target_pitch, pitch_max_rad));
             }
         }
+        // Timing calculation
+        clock_gettime(CLOCK_MONOTONIC, &current_time);
+        dt = (current_time.tv_sec - last_time.tv_sec) + 
+             (current_time.tv_nsec - last_time.tv_nsec) / 1000000000.0;
+        last_time = current_time;
 
         ControllerStep(pitch_curr_pos_rad, pitch_dst_rad, yaw_curr_pos_rad, yaw_dst_rad, dt);
 
