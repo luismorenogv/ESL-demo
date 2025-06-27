@@ -15,7 +15,7 @@
 
 #define ENCODER_ERROR_TOLERANCE  2
 #define HOMING_STALL_THRESHOLD  50
-#define MAX_SAFE_DUTY  ((uint16_t)(0.2 * ((1 << 12) - 1)))
+#define MAX_SAFE_DUTY  ((uint16_t)(0.25 * ((1 << 12) - 1)))
 
 #define MIN_OBJ_SIZE 2000
 
@@ -196,6 +196,14 @@ int main(int argc, char *argv[]) {
         // read back
         XXDouble pan_out  = getPanOut();  // Corresponds to Yaw
         XXDouble tilt_out = getTiltOut(); // Corresponds to Pitch
+
+        if (fabs(pan_out) < 0.1){
+            pan_out = 0.0; // Prevent small oscillations
+        }
+        if (fabs(tilt_out) < 0.1){
+            tilt_out = 0.0; // Prevent small oscillations
+        }
+
         printf("Tilt Out: %.2f\n", tilt_out);
         // printf("Controller Output: Pitch=%.2f rad, Yaw=%.2f rad\n", tilt_out, pan_out);
 
