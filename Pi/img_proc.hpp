@@ -14,6 +14,8 @@
 
 #include "controller/common/xxtypes.h" // For XXDouble
 
+#define MIN_OBJ_SIZE    2000
+
 // Shared data structure between threads
 struct TargetData {
     XXDouble x_offset_rad = 0.0;

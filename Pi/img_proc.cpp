@@ -164,6 +164,9 @@ bool ProcessOneFrame(GstElement* appsink, double& x_offset_rad, double& y_offset
         int largeContIndex = 0;
         for (size_t i = 0; i < contours.size(); ++i) {
             area = cv::contourArea(contours[i]);
+            if (area < MIN_OBJ_SIZE) {
+                continue; // Skip small contours
+            }
             if (area > max_area) {
                 max_area = area;
                 largeContIndex = i;

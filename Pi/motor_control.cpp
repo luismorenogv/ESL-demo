@@ -18,7 +18,6 @@
 #define ENCODER_ERROR_TOLERANCE  2
 #define HOMING_STALL_THRESHOLD  50
 #define MAX_SAFE_DUTY  ((uint16_t)(0.2 * ((1 << 12) - 1)))
-#define MIN_OBJ_SIZE    2000
 
 void HomeBothAxes(int spi_fd, int32_t* pitch_offset_out, int32_t* yaw_offset_out,
                                 uint32_t* pitch_max_steps, uint32_t* yaw_max_steps) {
@@ -109,9 +108,6 @@ void control_thread_func(int spi_fd, int32_t pitch_offset, int32_t yaw_offset,
     XXDouble pitch_max_rad = steps2rads((int32_t)pitch_max_steps, (int32_t)pitch_max_steps);
     XXDouble yaw_max_rad   = steps2rads((int32_t)yaw_max_steps, (int32_t)yaw_max_steps);
 
-    struct timespec next_time;
-    clock_gettime(CLOCK_MONOTONIC, &next_time);
-
     XXDouble dt = (XXDouble)PERIOD_NS / 1000000000.0;
 
     // Forward declaration of loop variables
@@ -124,6 +120,13 @@ void control_thread_func(int spi_fd, int32_t pitch_offset, int32_t yaw_offset,
     // Initialize destination positions to the middle of the range
     pitch_dst_rad = steps2rads((int32_t)pitch_max_steps/2, (int32_t)pitch_max_steps);
     yaw_dst_rad   = steps2rads((int32_t)yaw_max_steps/2, (int32_t)yaw_max_steps);
+
+    // Initialize timing
+    struct timespec next_time;
+    clock_gettime(CLOCK_MONOTONIC, &next_time);
+
+    struct timespec last_step, now;
+    clock_gettime(CLOCK_MONOTONIC, &last_step);
 
     while (g_run) {
         {
@@ -158,7 +161,11 @@ void control_thread_func(int spi_fd, int32_t pitch_offset, int32_t yaw_offset,
                 pitch_dst_rad = fmax(0.0, fmin(pitch_curr_pos_rad - current_target.y_offset_rad, pitch_max_rad));
             }
         }
-
+        // dt calculation
+        clock_gettime(CLOCK_MONOTONIC, &now);
+        dt = (XXDouble)(now.tv_sec - last_step.tv_sec) + 
+             (XXDouble)(now.tv_nsec - last_step.tv_nsec) / 1000000000.0;
+        last_step = now;
         ControllerStep(pitch_curr_pos_rad, pitch_dst_rad, yaw_curr_pos_rad, yaw_dst_rad, dt);
 
         // Get controller outputs

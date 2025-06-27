@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <csignal>
+#include <thread>
+#include <pthread.h>
 
 #include "spi_comm.h"
 #include "controller/controller.h"
@@ -59,6 +61,26 @@ int main(int argc, char *argv[]) {
     printf("Starting threads...\n");
     std::thread control_thr(control_thread_func, fd, pitch_offset, yaw_offset, pitch_max_steps, yaw_max_steps);
     std::thread vision_thr(vision_thread_func, sink);
+
+    // Set CPU affinity for threads
+    cpu_set_t cpuset_control;
+    CPU_ZERO(&cpuset_control);
+    CPU_SET(3, &cpuset_control);
+    int rc_control = pthread_setaffinity_np(control_thr.native_handle(),
+                                            sizeof(cpu_set_t), &cpuset_control);
+    if (rc_control != 0) {
+        fprintf(stderr, "Warning: Error setting CPU affinity for Motor Control Thread: %d\n", rc_control);
+    }
+
+    // Pin the vision thread to core 2
+    cpu_set_t cpuset_vision;
+    CPU_ZERO(&cpuset_vision);
+    CPU_SET(2, &cpuset_vision);
+    int rc_vision = pthread_setaffinity_np(vision_thr.native_handle(),
+                                           sizeof(cpu_set_t), &cpuset_vision);
+    if (rc_vision != 0) {
+        fprintf(stderr, "Warning: Error setting CPU affinity for Vision Thread: %d\n", rc_vision);
+    }
 
     // 5) Wait for threads to finish
     // The threads will run until g_run is set to false (e.g., by Ctrl+C)
