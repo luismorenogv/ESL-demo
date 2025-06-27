@@ -13,7 +13,7 @@
 #include "img_proc.hpp" // Shared data: g_run, g_target_data, g_target_mutex
 
 // Constants for control loop
-#define LOOP_HZ         1000
+#define LOOP_HZ         1000000
 #define PERIOD_NS       (1000000000L / LOOP_HZ)
 #define ENCODER_ERROR_TOLERANCE  2
 #define HOMING_STALL_THRESHOLD  50
@@ -138,7 +138,6 @@ void control_thread_func(int spi_fd, int32_t pitch_offset, int32_t yaw_offset,
             }
         }
 
-        int32_t raw_p, raw_y;
         if (ReadPositionCmd(spi_fd, UnitAll, &raw_p, &raw_y) < 0) {
             fprintf(stderr, "Error: Failed to read position in control thread.\n");
             g_run = false;
@@ -158,7 +157,7 @@ void control_thread_func(int spi_fd, int32_t pitch_offset, int32_t yaw_offset,
                 yaw_dst_rad   = yaw_curr_pos_rad;
             } else {
                 yaw_dst_rad   = fmax(0.0, fmin(yaw_curr_pos_rad + current_target.x_offset_rad, yaw_max_rad));
-                pitch_dst_rad = fmax(0.0, fmin(pitch_curr_pos_rad - current_target.y_offset_rad, pitch_max_rad));
+                pitch_dst_rad = fmax(0.0, fmin(pitch_curr_pos_rad + current_target.y_offset_rad, pitch_max_rad));
             }
         }
         // dt calculation

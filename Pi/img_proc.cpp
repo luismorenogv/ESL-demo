@@ -33,7 +33,7 @@ void vision_thread_func(GstElement *sink) {
             }
         }
 
-        usleep(1000); // Sleep for 1ms
+        usleep(10); // Sleep for 0.01ms
     }
     printf("Vision thread finished.\n");
 }

@@ -21,7 +21,7 @@ g++ main.cpp motor_control.cpp img_proc.cpp spi_comm.c \
     controller/tilt/tilt_xxmodel.c \
     controller/tilt/tilt_xxsubmod.c \
     -I./ \
-    -I./controller/ \
+    -I./controller/common \
     `pkg-config --cflags --libs opencv4 gstreamer-1.0 gstreamer-app-1.0` \
     -lm -lpthread -lstdc++ -Wall \
     -o gimbal_tracker

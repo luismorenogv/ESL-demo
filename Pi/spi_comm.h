@@ -11,7 +11,7 @@ extern "C" {
 #include <stdint.h>
 
 #define SPI_CHANNEL       1
-#define SPI_SPEED_HZ      4000000 // 4 MHz
+#define SPI_SPEED_HZ      10000000 // 10 MHz
 #define SPI_MODE          0
 #define SPI_BITS_PER_WORD 8
 

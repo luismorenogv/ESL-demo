@@ -11,6 +11,9 @@
 *.bak
 *~
 
+# Executable files
+gimbal_tracker
+
 # FPGA build artifacts
 FPGA/*.asc
 FPGA/*.json
