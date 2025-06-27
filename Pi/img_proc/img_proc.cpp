@@ -83,7 +83,7 @@ void ComputeAngles(int x_actual, int y_actual, int width, int height, double& x_
 
 bool ProcessOneFrame(GstElement* appsink, double& x_offset_rad, double& y_offset_rad, double& obj_size) {
     // Try to get a new video frame from the GStreamer pipeline. Non-blocking.
-    GstSample* sample = gst_app_sink_try_pull_sample(GST_APP_SINK(appsink), 0);
+    GstSample* sample = gst_app_sink_try_pull_sample(GST_APP_SINK(appsink), GST_CLOCK_TIME_NONE);
 
     // Static variables to remember the last good values.
     static int width, height;

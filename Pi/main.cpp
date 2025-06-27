@@ -157,11 +157,6 @@ int main(int argc, char *argv[]) {
 
     // 6) main loop
     while (1) {
-        // Timing calculation
-        clock_gettime(CLOCK_MONOTONIC, &current_time);
-        dt = (current_time.tv_sec - last_time.tv_sec) + 
-             (current_time.tv_nsec - last_time.tv_nsec) / 1000000000.0;
-        last_time = current_time;
 
         // printf("Loop time: %.3f seconds\n", dt);
         int32_t raw_p, raw_y;
@@ -194,6 +189,12 @@ int main(int argc, char *argv[]) {
                 pitch_dst_rad = fmax(0.0, fmin(target_pitch, pitch_max_rad));
             }
         }
+
+        // Timing calculation
+        clock_gettime(CLOCK_MONOTONIC, &current_time);
+        dt = (current_time.tv_sec - last_time.tv_sec) + 
+             (current_time.tv_nsec - last_time.tv_nsec) / 1000000000.0;
+        last_time = current_time;
 
         ControllerStep(pitch_curr_pos_rad, pitch_dst_rad, yaw_curr_pos_rad, yaw_dst_rad, dt);
 
