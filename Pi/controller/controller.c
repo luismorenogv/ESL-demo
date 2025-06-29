@@ -1,87 +1,85 @@
-// Filename : controller.c 
-// Authors :
-// Group :
-// License : N.A. or open source license like LGPL
-// Description : 
-//==============================================================
+// controller.c
 
-
-/** INCLUDES **/
 #include "controller.h"
-#include "pan_model.h"
-#include "tilt_model.h"
 
-/* EXTERN VARIABLES */
-extern XXDouble pan_V[];
-extern XXDouble tilt_V[];
+#include "pan/pan_xxsubmod.h"
+#include "tilt/tilt_xxsubmod.h"
+#include <stdbool.h>
 
-/** LOCAL VARIABLES **/
-XXDouble  panOut = 0.0, 
-         tiltOut = 0.0,
-            corr = 0.0;
+// Global variables to hold the I/O for each controller
+static XXDouble pan_inputs[2];
+static XXDouble pan_outputs[2];
+static XXDouble tilt_inputs[3];
+static XXDouble tilt_outputs[1];
 
-/** LOCAL FUNCTIONS **/
-void SetPanInputs(XXDouble pos, XXDouble dst);
-void ReadPanOutputs(void);
-void SetTiltInputs(XXDouble pos, XXDouble dst, XXDouble corr);
-void ReadTiltOutputs(void);
+// Global state for time
+static XXDouble g_pan_time = 0.0;
+static XXDouble g_tilt_time = 0.0;
 
-void ControllerInitialize(void)
-{
-    //Pan init
-    PanModelInitialize();
-    PanCalculateInitial();
-    //Tilt init
-    TiltModelInitialize();
-    TiltCalculateInitial();
+// Flag to ensure initialization is only called once
+static bool g_is_initialized = false;
+
+
+void ControllerInitialize(void) {
+    // Initialize Pan with zero inputs/outputs at time 0
+    pan_inputs[0] = 0.0; pan_inputs[1] = 0.0;
+    PanInitializeSubmodel(pan_inputs, pan_outputs, 0.0);
+    
+    // Initialize Tilt with zero inputs/outputs at time 0
+    tilt_inputs[0] = 0.0; tilt_inputs[1] = 0.0; tilt_inputs[2] = 0.0;
+    TiltInitializeSubmodel(tilt_inputs, tilt_outputs, 0.0);
+    
+    g_is_initialized = true;
 }
 
-void ControllerStep(XXDouble tiltPos, XXDouble tiltDst, XXDouble panPos, XXDouble panDst)
-{
-        //set pan inputs
-    SetPanInputs(panPos, panDst);
+void ControllerStep(XXDouble tiltPos, XXDouble tiltDst,
+                    XXDouble panPos,  XXDouble panDst,
+                    XXDouble dt) {
 
-    //calculate pan dynamic
-    PanCalculateDynamic();
-    PanCalculateOutput();
+    if (!g_is_initialized) {
+        ControllerInitialize();
+    }
+    
+    // Pan Controller
+    
+    // The submodel wrapper handles time and step size internally
+    // Update step size
+    extern XXDouble pan_step_size;
+    pan_step_size = dt;
+    g_pan_time += dt;
 
-    //read pan output
-    ReadPanOutputs();
+    // Prepare inputs for the pan model
+    pan_inputs[0] = panDst;    // "in"
+    pan_inputs[1] = panPos;    // "position"
+    
+    // Calculate one step
+    PanCalculateSubmodel(pan_inputs, pan_outputs, g_pan_time);
+    
+    // Tilt Controller
+    // Update step size
+    extern XXDouble tilt_step_size;
+    tilt_step_size = dt;
+    g_tilt_time += dt;
 
-    //set tilt inputs
-    SetTiltInputs(tiltPos, tiltDst, corr);
-
-    //calculate tilt dynamic
-    TiltCalculateDynamic();
-    TiltCalculateOutput();
-
-    //read pan output
-    ReadTiltOutputs();
+    // Prepare inputs for the tilt model
+    tilt_inputs[0] = pan_outputs[0]; // corr value from pan controller
+    tilt_inputs[1] = tiltDst;        // "in"
+    tilt_inputs[2] = tiltPos;        // "position"
+    
+    // Calculate one step
+    TiltCalculateSubmodel(tilt_inputs, tilt_outputs, g_tilt_time);
 }
 
-void SetPanInputs(XXDouble pos, XXDouble dst)
-{
-    pan_V[7] = dst;
-    pan_V[8] = pos;
+void ControllerTerminate(void) {
+    PanTerminateSubmodel(pan_inputs, pan_outputs, g_pan_time);
+    TiltTerminateSubmodel(tilt_inputs, tilt_outputs, g_tilt_time);
 }
 
-void ReadPanOutputs(void)
-{
-    corr    = pan_V[6];
-    panOut  = pan_V[9];
+// Getter functions
+XXDouble getPanOut(void) {
+    return pan_outputs[1];
 }
 
-void SetTiltInputs(XXDouble pos, XXDouble dst, XXDouble corr)
-{
-    tilt_V[8]  = corr;
-    tilt_V[9]  = dst;
-    tilt_V[10] = pos;
+XXDouble getTiltOut(void) {
+    return tilt_outputs[0];
 }
-
-void ReadTiltOutputs(void)
-{
-    tiltOut = tilt_V[11];
-}
-
-XXDouble getPanOut(void){return panOut;}
-XXDouble getTiltOut(void){return tiltOut;}

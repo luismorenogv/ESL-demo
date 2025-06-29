@@ -4,8 +4,8 @@
  *  file:  xxtypes.h
  *  model: Jiwy-1
  *  expmt: Jiwy-1
- *  date:  June 9, 2025
- *  time:  11:18:49 PM
+ *  date:  June 25, 2025
+ *  time:  12:21:48 PM
  *  user:  Vakgroep RaM
  *  from:  -
  *  build: 5.1.4.13773
@@ -47,9 +47,25 @@ typedef char XXCharacter;
 typedef char XXBoolean;
 typedef const char* XXString;
 
+typedef double TiltDouble;
+typedef int TiltInteger;
+typedef char TiltCharacter;
+typedef char TiltBoolean;
+typedef const char* TiltString;
+
+typedef double PanDouble;
+typedef int PanInteger;
+typedef char PanCharacter;
+typedef char PanBoolean;
+typedef const char* PanString;
+
 /* Defines */
 #define XXTRUE  1
 #define XXFALSE 0
+#define PanTRUE  1
+#define PanFALSE 0
+#define TiltTRUE  1
+#define TiltFALSE 0
 
 #endif
 

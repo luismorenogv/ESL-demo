@@ -5,8 +5,8 @@
  *  subm:  PositionControllerTilt
  *  model: Jiwy-1
  *  expmt: Jiwy-1
- *  date:  June 10, 2025
- *  time:  12:06:37 AM
+ *  date:  June 25, 2025
+ *  time:  12:22:27 PM
  *  user:  Vakgroep RaM
  *  from:  -
  *  build: 5.1.4.13773
@@ -18,21 +18,21 @@
    The model itself is the xxmodel.c file
 */
 
-#ifndef TILT_MODEL_H
-#define TILT_MODEL_H
+#ifndef Tilt_MODEL_H
+#define Tilt_MODEL_H
 
 /* Our own include files */
 #include "xxtypes.h"
 
 /* Simulation variables */
-//extern XXDouble xx_start_time;
-//extern XXDouble xx_finish_time;
-//extern XXDouble xx_step_size;
-//extern XXDouble xx_time;
-//extern XXInteger xx_steps;
-//extern XXBoolean xx_initialize;
-//extern XXBoolean xx_major;
-//extern XXBoolean xx_stop_simulation;
+extern TiltDouble tilt_start_time;
+extern TiltDouble tilt_finish_time;
+extern TiltDouble tilt_step_size;
+extern TiltDouble tilt_time;
+extern TiltInteger tilt_steps;
+extern TiltBoolean tilt_initialize;
+extern TiltBoolean tilt_major;
+extern TiltBoolean tilt_stop_simulation;
 
 /* Model size constants */
 #define tilt_constants_size 0
@@ -42,21 +42,20 @@
 #define tilt_states_size 3
 
 /* Variable arrays */
-extern XXDouble tilt_P[];
-extern XXDouble tilt_I[];
-extern XXDouble tilt_V[];
-extern XXDouble tilt_s[];
-extern XXDouble tilt_R[];
+extern TiltDouble tilt_P[];
+extern TiltDouble tilt_I[];
+extern TiltDouble tilt_V[];
+extern TiltDouble tilt_s[];
+extern TiltDouble tilt_R[];
 
-extern XXDouble tilt_step_size;
 
 /* The names of the variables as used in the arrays above
    uncomment this if you need the names (see source file too)
-extern XXString xx_parameter_names[];
-extern XXString xx_initial_value_names[];
-extern XXString xx_variable_names[];
-extern XXString xx_state_names[];
-extern XXString xx_rate_names[];
+extern TiltString tilt_parameter_names[];
+extern TiltString tilt_initial_value_names[];
+extern TiltString tilt_variable_names[];
+extern TiltString tilt_state_names[];
+extern TiltString tilt_rate_names[];
 */
 
 /* Initialization methods */
