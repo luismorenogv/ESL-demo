@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="X-UA-Compatible" content="ie=edge">
+<title>Test Overview</title>
+<style>
+* { font-family: sans-serif;}
+table {
+border-collapse: collapse;
+table-layout: fixed;
+width: 99%;
+margin: 0 0px 25px 7px;
+padding-right: 7px;
+font-size: 0.9em;
+min-width: 400px;
+border-radius: 5px 5px 0 0;
+overflow: hidden;
+box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
+}
+details summary { cursor: pointer; }
+h1 {
+margin: 0 0 7px 14px;
+font-size: 1.5em;
+font-weight: bold;
+text-align: left;
+}
+thead tr {
+background-color: #009879;
+color: #ffffff;
+text-align: left;
+font-weight: bold;
+}
+.failed thead tr { background-color: #983500; }
+.ignored thead tr { background-color: #849800; }
+.success thead tr { background-color: #00981e; }
+table th, td { padding: 12px 15px; word-break: break-all; }
+table tbody tr { border-bottom: 1px solid #dddddd; }
+table tbody tr:nth-of-type(even) { background-color: #f3f3f3; }
+table tbody tr:last-of-type { border-bottom: 2px solid #009879; }
+.failed tbody tr:last-of-type { border-bottom: 2px solid #983500; }
+.ignored tbody tr:last-of-type { border-bottom: 2px solid #849800; }
+.success tbody tr:last-of-type { border-bottom: 2px solid #00981e; }
+table tbody tr:hover { color: #009879; }
+.failed tbody tr:hover { color: #983500; }
+.ignored tbody tr:hover { color: #849800; }
+.success tbody tr:hover { color: #00981e; }
+</style>
+</head>
+<body>
+<h1>Summary</h1>
+<table>
+<thead><tr><th>Total</th><th>Passed</th><th>Ignored</th><th>Failed</th></tr></thead>
+<tbody>
+<tr>
+<td>6</td>
+<td>6</td>
+<td>0</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+<h1>Success Tests</h1>
+<table class='success'>
+<thead><tr><th>File</th><th>Name</th><th>Message</th></tr></thead>
+<tbody>
+<tr>
+<td rowspan="6">test/test_controller.c</td>
+<td>test_ControllerStep_WithInit</td>
+<td>—</td>
+</tr>
+<tr>
+<td>test_ControllerInitialize_Positive</td>
+<td>—</td>
+</tr>
+<tr>
+<td>test_ControllerStep_WithoutInit</td>
+<td>—</td>
+</tr>
+<tr>
+<td>test_ControllerTerminate_Positive</td>
+<td>—</td>
+</tr>
+<tr>
+<td>test_getPanOut_Positive_Null</td>
+<td>—</td>
+</tr>
+<tr>
+<td>test_getTiltOut_Positive_Null</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>
