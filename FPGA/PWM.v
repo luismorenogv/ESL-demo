@@ -2,7 +2,7 @@
 module PWM #(
   parameter CLK_FREQ    = 50_000_000,
   parameter PWM_FREQ    = 20_000,
-  parameter COUNTER_W   = 12  // Adjust resolution as needed
+  parameter COUNTER_W   = 12
 ) (
   input  wire                  clk,
   input  wire                  reset,       // active-high
@@ -25,12 +25,14 @@ module PWM #(
       inb      <= 0;
     end else if (enable) begin
       // PWM generator
+      // Increment counter
       if (counter < PERIOD-1) counter <= counter + 1;
       else                   counter <= 0;
 
+      // Generate PWM output based on duty cycle
       pwm_out <= (counter < (duty_cycle * PERIOD) >> COUNTER_W) ? 1 : 0;
 
-      // Direction lines (constant during PWM period)
+      // Drive direction lines
       ina <= direction;
       inb <= ~direction;
     end else begin

@@ -8,6 +8,7 @@
 #include <sys/ioctl.h>
 #include <unistd.h>
 
+// Defines for the custom codes for SPI communication protocol with the FPGA.
 #define CMD_WRITE_PITCH_PWM 0x10
 #define CMD_WRITE_YAW_PWM   0x11
 #define CMD_WRITE_ALL_PWM   0x12
@@ -16,6 +17,7 @@
 #define CMD_READ_ALL_POSITIONS 0x22
 #define CHECK_PWM_STATUS 0x30
 
+// Low-level helper to perform a generic SPI transaction using ioctl.
 static int SpiXfer(int fd, unsigned speed, uint8_t *tx_buf, uint8_t *rx_buf, unsigned count) {
     struct spi_ioc_transfer tr = {
         .tx_buf        = (unsigned long)tx_buf,
@@ -37,12 +39,14 @@ int SpiOpen(unsigned spi_chan, unsigned spi_baud, unsigned spi_flags) {
     char mode = spi_flags & 0x03;
     char bits = SPI_BITS_PER_WORD;
 
+    // Construct the device path (e.g., /dev/spidev0.1) and open it.
     snprintf(dev, sizeof(dev), "/dev/spidev0.%u", spi_chan);
     fd = open(dev, O_RDWR);
     if (fd < 0) {
         perror("open(spidev)");
         return -1;
     }
+    // Configure SPI mode, bits per word, and max speed.
     if (ioctl(fd, SPI_IOC_WR_MODE, &mode) < 0 ||
         ioctl(fd, SPI_IOC_WR_BITS_PER_WORD, &bits) < 0 ||
         ioctl(fd, SPI_IOC_WR_MAX_SPEED_HZ, &spi_baud) < 0) {
@@ -62,6 +66,7 @@ int SendPwmCmd(int fd, encoder_t unit, uint16_t duty, uint8_t enable, uint8_t di
     uint8_t cmd = (unit == UnitPitch) ? CMD_WRITE_PITCH_PWM : CMD_WRITE_YAW_PWM;
 
     tx[0] = cmd;
+    // Pack the 12-bit duty cycle and flags into two bytes.
     tx[1] = (uint8_t)(duty & 0xFF);
     tx[2] = (uint8_t)(((enable & 0x1) << 7) | ((dir & 0x1) << 6) | (((duty >> 8) & 0x0F) << 2));
     memset(rx, 0, sizeof(rx));
@@ -72,18 +77,26 @@ int SendAllPwmCmd(int fd, uint16_t pitch_duty, uint8_t pitch_enable, uint8_t pit
                   uint16_t yaw_duty, uint8_t yaw_enable, uint8_t yaw_dir) {
     uint8_t tx[5], rx[5];
     tx[0] = CMD_WRITE_ALL_PWM;
+
+    // Byte 1-2: Pitch PWM data.
     tx[1] = (uint8_t)(pitch_duty & 0xFF);
     tx[2] = (uint8_t)(((pitch_enable & 0x1) << 7) | ((pitch_dir & 0x1) << 6) | (((pitch_duty >> 8) & 0x0F) << 2));
+
+    // Byte 3-4: Yaw PWM data.
     tx[3] = (uint8_t)(yaw_duty & 0xFF);
     tx[4] = (uint8_t)(((yaw_enable & 0x1) << 7) | ((yaw_dir & 0x1) << 6) | (((yaw_duty >> 8) & 0x0F) << 2));
+
     memset(rx, 0, sizeof(rx));
     return SpiXfer(fd, SPI_SPEED_HZ, tx, rx, 5);
 }
 
 int ReadPositionCmd(int fd, encoder_t unit, int32_t *pitch_pos, int32_t *yaw_pos) {
+    // Ternary operator to set up single-axis or dual-axis read.
     int32_t *out_pos = (unit == UnitPitch) ? pitch_pos : (unit == UnitYaw) ? yaw_pos : NULL;
     uint8_t byte_size = (unit == UnitAll) ? 9 : 5;
     uint8_t tx[byte_size], rx[byte_size];
+
+    // The first byte sent is the command code. The rest are dummy bytes (0x00).
     memset(tx, 0, sizeof(tx));
     memset(rx, 0, sizeof(rx));
     tx[0] = (unit == UnitPitch) ? CMD_READ_PITCH_POS : (unit == UnitYaw) ? CMD_READ_YAW_POS : CMD_READ_ALL_POSITIONS;
@@ -91,6 +104,7 @@ int ReadPositionCmd(int fd, encoder_t unit, int32_t *pitch_pos, int32_t *yaw_pos
     int err = SpiXfer(fd, SPI_SPEED_HZ, tx, rx, byte_size);
     if (err < 0) return err;
 
+    // Reconstruct the 32-bit integer position values from the received bytes.
     if (unit == UnitAll) {
         *pitch_pos = ((int32_t)rx[1] << 24) | ((int32_t)rx[2] << 16) | ((int32_t)rx[3] << 8) | (int32_t)rx[4];
         *yaw_pos   = ((int32_t)rx[5] << 24) | ((int32_t)rx[6] << 16) | ((int32_t)rx[7] << 8) | (int32_t)rx[8];
@@ -107,10 +121,12 @@ int CheckPwmStatus(int fd, PwmStatus *pitch_status, PwmStatus *yaw_status) {
     uint8_t tx[5] = { CHECK_PWM_STATUS }, rx[5] = {0};
     int err = SpiXfer(fd, SPI_SPEED_HZ, tx, rx, 5);
     if (err < 0) return err;
-
+    
+    // Unpack the received bytes into the status structs.
     pitch_status->enable = (rx[1] >> 7) & 0x01;
     pitch_status->dir    = (rx[1] >> 6) & 0x01;
     pitch_status->duty   = ((rx[1] >> 2) & 0x0F) << 8 | rx[2];
+
     yaw_status->enable   = (rx[3] >> 7) & 0x01;
     yaw_status->dir      = (rx[3] >> 6) & 0x01;
     yaw_status->duty     = ((rx[3] >> 2) & 0x0F) << 8 | rx[4];

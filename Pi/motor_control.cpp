@@ -46,11 +46,14 @@ void HomeBothAxes(int spi_fd, int32_t* pitch_offset_out, int32_t* yaw_offset_out
             // Enable only the motors that still need homing
             uint16_t pitch_drive_duty = pitch_homed ? 0 : homing_duty;
             uint16_t yaw_drive_duty = yaw_homed ? 0 : homing_duty;
-            uint8_t dir = i == 0 ? 1 : 0; // First pass forward, second pass reverse
+
+            // First pass forward, second pass reverse
+            uint8_t dir = i == 0 ? 1 : 0;
 
             SendAllPwmCmd(spi_fd, pitch_drive_duty, !pitch_homed, dir, 
                                 yaw_drive_duty, !yaw_homed, dir);
 
+            // Read current position
             if (ReadPositionCmd(spi_fd, UnitAll, &current_pitch, &current_yaw) < 0) {
                 fprintf(stderr, "Homing: Failed to read position, retrying...\n");
                 usleep(10000);
@@ -66,8 +69,10 @@ void HomeBothAxes(int spi_fd, int32_t* pitch_offset_out, int32_t* yaw_offset_out
                 if (pitch_stall_counter >= HOMING_STALL_THRESHOLD) {
                     pitch_homed = true;
                     if (i == 0)
+                        // First pass sets the offset
                         *pitch_offset_out = current_pitch;
                     else
+                        // Second pass sets the max steps
                         *pitch_max_steps = abs(current_pitch - *pitch_offset_out);
                 }
             }
@@ -81,8 +86,10 @@ void HomeBothAxes(int spi_fd, int32_t* pitch_offset_out, int32_t* yaw_offset_out
                 if (yaw_stall_counter >= HOMING_STALL_THRESHOLD) {
                     yaw_homed = true;
                     if (i == 0)
+                        // First pass sets the offset
                         *yaw_offset_out = current_yaw;
                     else
+                        // Second pass sets the max steps
                         *yaw_max_steps = abs(current_yaw - *yaw_offset_out);
                 }
             }
@@ -105,10 +112,9 @@ void control_thread_func(int spi_fd, int32_t pitch_offset, int32_t yaw_offset,
                          uint32_t pitch_max_steps, uint32_t yaw_max_steps) {
     printf("Control thread started.\n");
 
-    XXDouble pitch_max_rad = steps2rads((int32_t)pitch_max_steps, (int32_t)pitch_max_steps);
-    XXDouble yaw_max_rad   = steps2rads((int32_t)yaw_max_steps, (int32_t)yaw_max_steps);
-
-    XXDouble dt = (XXDouble)PERIOD_NS / 1000000000.0;
+    // Convert max steps to radians
+    XXDouble pitch_max_rad = steps2rads((int32_t)pitch_max_steps, (int32_t)pitch_max_steps, PITCH_RANGE_RAD);
+    XXDouble yaw_max_rad   = steps2rads((int32_t)yaw_max_steps, (int32_t)yaw_max_steps, YAW_RANGE_RAD);
 
     // Forward declaration of loop variables
     int32_t raw_p, raw_y, abs_p, abs_y; 
@@ -118,8 +124,8 @@ void control_thread_func(int spi_fd, int32_t pitch_offset, int32_t yaw_offset,
     uint8_t pan_dir, tlt_dir;
 
     // Initialize destination positions to the middle of the range
-    pitch_dst_rad = steps2rads((int32_t)pitch_max_steps/2, (int32_t)pitch_max_steps);
-    yaw_dst_rad   = steps2rads((int32_t)yaw_max_steps/2, (int32_t)yaw_max_steps);
+    pitch_dst_rad = steps2rads((int32_t)pitch_max_steps/2, (int32_t)pitch_max_steps, PITCH_RANGE_RAD);
+    yaw_dst_rad   = steps2rads((int32_t)yaw_max_steps/2, (int32_t)yaw_max_steps, YAW_RANGE_RAD);
 
     // Initialize timing
     struct timespec next_time;
@@ -130,6 +136,7 @@ void control_thread_func(int spi_fd, int32_t pitch_offset, int32_t yaw_offset,
 
     while (g_run) {
         {
+            // Check for new target data
             std::lock_guard<std::mutex> lock(g_target_mutex);
             current_target = g_target_data;
                 if (g_target_data.new_frame) {
@@ -138,6 +145,7 @@ void control_thread_func(int spi_fd, int32_t pitch_offset, int32_t yaw_offset,
             }
         }
 
+        // Read current position from encoders
         if (ReadPositionCmd(spi_fd, UnitAll, &raw_p, &raw_y) < 0) {
             fprintf(stderr, "Error: Failed to read position in control thread.\n");
             g_run = false;
@@ -147,15 +155,16 @@ void control_thread_func(int spi_fd, int32_t pitch_offset, int32_t yaw_offset,
         // Convert encoder readings to radians
         abs_p = raw_p - pitch_offset;
         abs_y = raw_y - yaw_offset;
-        pitch_curr_pos_rad = steps2rads(abs_p, (int32_t)pitch_max_steps);
-        yaw_curr_pos_rad   = steps2rads(abs_y, (int32_t)yaw_max_steps);
+        pitch_curr_pos_rad = steps2rads(abs_p, (int32_t)pitch_max_steps, PITCH_RANGE_RAD);
+        yaw_curr_pos_rad   = steps2rads(abs_y, (int32_t)yaw_max_steps, YAW_RANGE_RAD);
 
-        // Set destination based on object size
         if (current_target.new_frame) {
+            // If a new frame is available, update the destination angles if the object is large enough
             if (current_target.obj_size <= MIN_OBJ_SIZE) {
                 pitch_dst_rad = pitch_curr_pos_rad;
                 yaw_dst_rad   = yaw_curr_pos_rad;
             } else {
+                // Add the offset to the current position and clamp to max range
                 yaw_dst_rad   = fmax(0.0, fmin(yaw_curr_pos_rad + current_target.x_offset_rad, yaw_max_rad));
                 pitch_dst_rad = fmax(0.0, fmin(pitch_curr_pos_rad + current_target.y_offset_rad, pitch_max_rad));
             }
@@ -165,6 +174,7 @@ void control_thread_func(int spi_fd, int32_t pitch_offset, int32_t yaw_offset,
         dt = (XXDouble)(now.tv_sec - last_step.tv_sec) + 
              (XXDouble)(now.tv_nsec - last_step.tv_nsec) / 1000000000.0;
         last_step = now;
+
         ControllerStep(pitch_curr_pos_rad, pitch_dst_rad, yaw_curr_pos_rad, yaw_dst_rad, dt);
 
         // Get controller outputs

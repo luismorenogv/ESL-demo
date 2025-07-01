@@ -1,8 +1,8 @@
 // TopEntity.v
 module TopEntity #(
-    parameter CLK_FREQ  = 12_000_000,   // 12 MHz
+    parameter CLK_FREQ  = 25_000_000,   // 25 MHz
     parameter PWM_FREQ  = 20_000,       // 20 kHz
-    parameter COUNTER_W = 12            // 12-bit resolution
+    parameter COUNTER_W = 12            // 12-bit duty cycle resolution
   )
   (
     input  wire         clk,
@@ -15,12 +15,12 @@ module TopEntity #(
     // Encoders & PWM signals
     input  wire         PITCH_ENC_A,
     input  wire         PITCH_ENC_B,
-    output  wire         PITCH_DIRA,     // will be driven by PWM below
+    output  wire         PITCH_DIRA,
     output  wire         PITCH_DIRB,
     output wire         PITCH_PWM_VAL,
     input  wire         YAW_ENC_A,
     input  wire         YAW_ENC_B,
-    output  wire         YAW_DIRA,       // will be driven
+    output  wire         YAW_DIRA,
     output  wire         YAW_DIRB,
     output wire         YAW_PWM_VAL,
     output reg          led1 = 1'b0,
@@ -28,9 +28,7 @@ module TopEntity #(
     output reg          led3 = 1'b0
   );
 
-  //─────────────────────────────────────────────────────────────────────────
   // 1) Instantiate Encoders and PWM
-  //─────────────────────────────────────────────────────────────────────────
   wire [1:0] dir_pitch, dir_yaw;
   wire signed [31:0] position_pitch, position_yaw;
 
@@ -76,10 +74,9 @@ module TopEntity #(
     .pwm_out(YAW_PWM_VAL)
   );
 
-  //─────────────────────────────────────────────────────────────────────────
+
   // 2) SPI Slave Mechanism (single‐CS reads) – unified into one block
-  //─────────────────────────────────────────────────────────────────────────
-  // a) edge detectors
+  // edge detectors
   reg [2:0] SPI_CLKr, SPI_CSr;
   always @(posedge clk) begin
     SPI_CLKr <= {SPI_CLKr[1:0], SPI_CLK};
@@ -91,7 +88,7 @@ module TopEntity #(
   wire SPI_CS_startmessage = (SPI_CSr[2:1] == 2'b10);
   wire SPI_CS_endmessage   = (SPI_CSr[2:1] == 2'b01);
 
-  // b) synchronize MOSI
+  // synchronize MOSI avoiding metastability issues
   reg [1:0] SPI_PICOr;
   always @(posedge clk)
     SPI_PICOr <= {SPI_PICOr[0], SPI_PICO};
@@ -124,6 +121,7 @@ module TopEntity #(
           duty_cycle_yaw   <= {rx_buf[2][5:2], rx_buf[1]};
         end
         8'h12: begin
+          led1 <= 1'b1; // indicate we received a write command
           enable_pitch     <= rx_buf[2][7];
           direction_pitch  <= rx_buf[2][6];
           duty_cycle_pitch <= {rx_buf[2][5:2], rx_buf[1]};
@@ -148,7 +146,7 @@ module TopEntity #(
         tx_buf[0] <= 8'h01; // send dummy byte first
       end
 
-      // SHIFT IN on rising edge
+      // SHIFT IN received data on rising edge
       if (SPI_CLK_risingedge) begin
         bit_cnt  <= bit_cnt + 1;
         rx_shift <= {rx_shift[6:0], SPI_PICO_data};
@@ -160,6 +158,7 @@ module TopEntity #(
 
           // decode first byte immediately
           if (byte_cnt == 4'h0) begin
+            // load tx_buf with data in case of read commands
             case ({rx_shift[6:0], SPI_PICO_data})
               8'h20: begin
                 tx_buf[1] <= position_pitch[31:24];
@@ -201,7 +200,7 @@ module TopEntity #(
         end
       end
 
-      // SHIFT OUT on falling edge
+      // SHIFT OUT tx buffer on falling edge
       if (SPI_CLK_fallingedge) begin
         if (bit_cnt == 3'b000)
           tx_shift <= tx_buf[byte_cnt];
@@ -211,9 +210,7 @@ module TopEntity #(
     end
   end
 
-  //─────────────────────────────────────────────────────────────────────────
-  // 3) led3: 1 Hz blink to show core is alive
-  //─────────────────────────────────────────────────────────────────────────
+  // 3) led3: blink to show core is alive
   reg [31:0] led3_counter = 32'd0;
   always @(posedge clk) begin
     if (btn1) begin
