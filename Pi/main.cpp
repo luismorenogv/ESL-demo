@@ -83,7 +83,7 @@ int main(int argc, char *argv[]) {
     }
 
     // 5) Wait for threads to finish
-    // The threads will run until g_run is set to false (e.g., by Ctrl+C)
+    // The threads will run until g_run is set to false (by Ctrl+C)
     control_thr.join();
     vision_thr.join();
 
