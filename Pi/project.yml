@@ -98,14 +98,16 @@
 # see documentation for the many options for specifying this.
 :paths:
   :test:
-    - +:test/**
+    - +:test/C/**
     - -:test/support
   :source:
     #- src/**
     - controller/**
+    - ./**
   :include:
     #- src/** # In simple projects, this entry often duplicates :source
     - controller/**
+    - ./**
   :support:
     - test/support
   :libraries: []
