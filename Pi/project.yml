@@ -48,6 +48,9 @@
   :use_assembly: FALSE
   :artifacts: []
 
+
+
+
 # Plugins are optional Ceedling features which can be enabled. Ceedling supports
 # a variety of plugins which may effect the way things are compiled, reported, 
 # or may provide new command options. Refer to the readme in each plugin for 
@@ -99,17 +102,22 @@
 :paths:
   :test:
     - +:test/C/**
-    - -:test/support
+    #- -:test/support
   :source:
     #- src/**
     - controller/**
     - ./**
+    #- test/support/sys/**
   :include:
     #- src/** # In simple projects, this entry often duplicates :source
     - controller/**
     - ./**
+    #- test/support/**
+    - test/support/sys/**
+    - test/support/linux/spi/**
   :support:
     - test/support
+    #- test/support/sys/**
   :libraries: []
 
 # You can even specify specific files to add or remove from your test
@@ -269,7 +277,7 @@
     # - Xml
     #- XmlSummary
   :html_report:
-    :output_directory: ./test/results/coverage_report
+    :output_directory: coverage
   :gcovr:
     # :html_artifact_filename: TestCoverageReport.html
     :html_title: Test Coverage Report
