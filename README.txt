@@ -25,3 +25,8 @@ g++ main.cpp motor_control.cpp img_proc.cpp spi_comm.c \
     `pkg-config --cflags --libs opencv4 gstreamer-1.0 gstreamer-app-1.0` \
     -lm -lpthread -lstdc++ -Wall \
     -o gimbal_tracker
+
+
+Test commands for gtest
+g++ ./CPP/test_img_proc.cpp ./CPP/gstreamer_mocks.cpp ../img_proc.cpp     -O0 -g --coverage     `pkg-config --cflags --libs opencv4 gstreamer-1.0 gstreamer-app-1.0`   -lgtest -lgtest_main -pthread -o test_runner
+gcovr -r .. --html --html-details -o ./html/coverage.html
