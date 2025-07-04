@@ -92,8 +92,8 @@ module TopEntity_tb;
     initial begin
 
         $display("Starting TopEntity Testbench...");
-        $dumpfile("top_entity_signals.vcd");
-        $dumpvars(0, TopEntity_tb);
+        // $dumpfile("top_entity_signals.vcd");
+        // $dumpvars(0, TopEntity_tb);
 
         // Initialization and reset
         btn1 = 1'b1; 
