@@ -95,11 +95,11 @@ int SpiClose(int fd) {
 
 
 /*********************************************
-* @brief Sends the PWM command over a specific //TODO NOT USED!
+* @brief Sends the PWM command over a specific
 * 
 * @param [in] parameter parameter description
 * 
-* @return None.
+* @return SpiXfer return value
 *********************************************/
 int SendPwmCmd(int fd, encoder_t unit, uint16_t duty, uint8_t enable, uint8_t dir) {
     uint8_t tx[3], rx[3];
@@ -182,7 +182,15 @@ int ReadPositionCmd(int fd, encoder_t unit, int32_t *pitch_pos, int32_t *yaw_pos
     return 0;
 }
 
-//TODO NOT USED!
+/*********************************************
+* @brief Checks the PWM status
+* 
+* @param [in]  fd           SPI communication handle
+* @param [out] pitch_status pitch status struct
+* @param [out] yaw_status   yaw status struct
+* 
+* @return 0: No error; < 0: error code
+*********************************************/
 int CheckPwmStatus(int fd, PwmStatus *pitch_status, PwmStatus *yaw_status) {
     uint8_t tx[5] = { CHECK_PWM_STATUS }, rx[5] = {0};
     int err = SpiXfer(fd, SPI_SPEED_HZ, tx, rx, 5);
