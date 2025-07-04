@@ -8,7 +8,8 @@ This document contains commands to build, run, and test the project.
 --------------------
 
 This single command will install all required system dependencies from the
-Ubuntu repositories, including the C++/FPGA toolchains and testing tools.
+Ubuntu repositories, including the C++/FPGA toolchains and testing tools (excluded C tests, 
+for those, check dedicated section).
 
 sudo apt update && sudo apt install -y \
     build-essential \
@@ -20,7 +21,7 @@ sudo apt update && sudo apt install -y \
     yosys \
     nextpnr-ice40 \
     fpga-icestorm \
-    libgtest-dev \
+    libgtest-dev googletest \ 
     gcovr
 
 
@@ -67,5 +68,71 @@ cd ~/ESL-demo/Pi && ./gimbal_tracker /dev/video1
 3. Unit Tests
 --------------------------------
 
-g++ ./CPP/test_img_proc.cpp ./CPP/gstreamer_mocks.cpp ../img_proc.cpp     -O0 -g --coverage     `pkg-config --cflags --libs opencv4 gstreamer-1.0 gstreamer-app-1.0`   -lgtest -lgtest_main -pthread -o test_runner
-gcovr -r .. --html --html-details -o ./html/coverage.html
+# --- For C++ ---
+
+## Testing test_img_proc.cpp
+
+### Compiling test_img_proc.cpp
+cd ./Pi
+
+g++ ./test/CPP/test_img_proc.cpp ./test/CPP/gstreamer_mocks.cpp ./img_proc.cpp  \
+    -O0 -g --coverage  `pkg-config --cflags --libs opencv4 gstreamer-1.0 gstreamer-app-1.0` \
+    -lgtest -lgtest_main -pthread -o test_runner
+
+### Running test_img_proc.cpp
+./test_runner
+
+### Generating the html code coverage files for img_proc.cpp
+mkdir ./test/results/html_img_proc
+
+gcovr test_runner-img_proc.gcda test_runner-img_proc.gcno \
+      --html --html-details -o ./test/results/html_img_proc/coverage.html
+
+## Testing test_steps2rads.cpp
+
+### Compiling test_steps2rads.cpp
+cd ./Pi
+
+g++ ./test/CPP/test_steps2rads.cpp    -I controller/common/  -O0 -g --coverage  `pkg-config --cflags \
+    --libs opencv4 gstreamer-1.0 gstreamer-app-1.0`     -lgtest -lgtest_main -pthread -o test_runner
+
+### Running test_steps2rads.cpp, this will print test results on terminal
+./test_runner
+
+### Generating the html code coverage files for img_proc.cpp
+mkdir ./test/results/html_steps2rads
+
+gcovr ./test_runner-test_steps2rads.gcda ./test_runner-test_steps2rads.gcno --html --html-details  \
+        -o ./test/results/html_steps2rads/coverage.html
+
+
+# --- For C --- (Only on Windows!)
+We tried the same pipeline on Linux, but the test cases crash when launched, this is because on Linux, 
+ceedling is most probably not capable of succesfully mocking libraries like spidev and ioctl.  
+
+For C testing we used Ceedling, which is a framework based on Ruby, to use this, Ruby must be installed
+
+## Install Ruby (more info here https://www.ruby-lang.org/en/documentation/installation/#winget)
+### Linux command
+sudo apt-get install ruby-full
+
+## Open a command prompt with Ruby and install Ceedling (more info here: https://www.throwtheswitch.org/ceedling#get-ceedling-section)
+gem install ceedling
+
+## On the command prompt opened with Ruby
+cd <to-project-folder>/Pi
+
+## Launching only tests
+ceedling test:all
+
+### This will print results on terminal
+
+## Launching tests AND code generating code coverage reports
+### Is important to remove artifacts from previous C++ tests, especially .gcda and .gcno files
+rm *.gcda
+rm *.gcno
+
+ceedling gcov:all
+
+### This will print results on terminal
+### The tests results html and code coverage reports will be im build/artifacts/gcov

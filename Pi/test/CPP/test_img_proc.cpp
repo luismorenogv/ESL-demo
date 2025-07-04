@@ -8,6 +8,7 @@
 extern int set_state_called;
 extern int unref_called;
 
+extern GstElement* fake_pipeline;
 
 void reset_mock_counters() {
     set_state_called = 0;

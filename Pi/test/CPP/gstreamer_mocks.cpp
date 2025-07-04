@@ -7,6 +7,8 @@
 int set_state_called = 0;
 int unref_called = 0;
 
+GstElement* fake_pipeline = reinterpret_cast<GstElement*>(0x101);
+
 
 extern "C" {
 
