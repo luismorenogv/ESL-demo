@@ -116,10 +116,13 @@ For C testing we used Ceedling, which is a framework based on Ruby, to use this,
 ### Linux command
 sudo apt-get install ruby-full
 
-## Open a command prompt with Ruby and install Ceedling (more info here: https://www.throwtheswitch.org/ceedling#get-ceedling-section)
+## (On Windows) Open a command prompt with Ruby and install Ceedling (more info here: https://www.throwtheswitch.org/ceedling#get-ceedling-section)
 gem install ceedling
 
-## On the command prompt opened with Ruby
+## (On Linux)
+sudo gem install ceedling
+
+## On the command prompt (on Windows it must have been opened with Ruby)
 cd <to-project-folder>/Pi
 
 ## Launching only tests
