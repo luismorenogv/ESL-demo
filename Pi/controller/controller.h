@@ -1,4 +1,9 @@
-// controller.h
+// Filename : controller.h 
+// Authors : Luis Moreno (s3608255), Luca Provenzano (s3487636)
+// Group : 43
+// License : N.A. or open source license like LGPL
+// Description : Controller wrapper header file
+//==============================================================
 
 #ifndef CONTROLLER_H
 #define CONTROLLER_H

@@ -1,5 +1,9 @@
-// controller.c
-
+// Filename : controller.c 
+// Authors : Luis Moreno (s3608255), Luca Provenzano (s3487636)
+// Group : 43
+// License : N.A. or open source license like LGPL
+// Description : Controller wrapper for interacting with the PID controller
+//==============================================================
 #include "controller.h"
 
 #include "pan/pan_xxsubmod.h"
@@ -19,7 +23,11 @@ static XXDouble g_tilt_time = 0.0;
 // Flag to ensure initialization is only called once
 static bool g_is_initialized = false;
 
-
+/*********************************************
+* @brief Controller initializer
+*
+* @return None.
+*********************************************/
 void ControllerInitialize(void) {
     // Initialize Pan with zero inputs/outputs at time 0
     pan_inputs[0] = 0.0; pan_inputs[1] = 0.0;
@@ -32,6 +40,17 @@ void ControllerInitialize(void) {
     g_is_initialized = true;
 }
 
+/*********************************************
+* @brief Actuates a step in the PID controller, updating its input values
+* 
+* @param [in] tiltPos tilt position in radiants
+* @param [in] tiltDst tilt destination in radiants
+* @param [in] panPos  pan position in radiants
+* @param [in] panDst  pan destination in radiants
+* @param [in] dt      delta of time since last call
+* 
+* @return None.
+*********************************************/
 void ControllerStep(XXDouble tiltPos, XXDouble tiltDst,
                     XXDouble panPos,  XXDouble panDst,
                     XXDouble dt) {
@@ -70,16 +89,31 @@ void ControllerStep(XXDouble tiltPos, XXDouble tiltDst,
     TiltCalculateSubmodel(tilt_inputs, tilt_outputs, g_tilt_time);
 }
 
+
+/*********************************************
+* @brief Controller termination function
+* 
+* @return None.
+*********************************************/
 void ControllerTerminate(void) {
     PanTerminateSubmodel(pan_inputs, pan_outputs, g_pan_time);
     TiltTerminateSubmodel(tilt_inputs, tilt_outputs, g_tilt_time);
 }
 
-// Getter functions
+/*********************************************
+* @brief getter for PID pan output
+* 
+* @return PID pan output [-0.99, 0.99]
+*********************************************/
 XXDouble getPanOut(void) {
     return pan_outputs[1];
 }
 
+/*********************************************
+* @brief getter for PID tilt output
+* 
+* @return PID tilt output [-0.99, 0.99]
+*********************************************/
 XXDouble getTiltOut(void) {
     return tilt_outputs[0];
 }

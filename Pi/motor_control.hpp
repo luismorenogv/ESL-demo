@@ -1,4 +1,9 @@
-// motor_control.hpp
+// Filename : motor_control.hpp 
+// Authors : Luis Moreno (s3608255), Luca Provenzano (s3487636)
+// Group : 43
+// License : N.A. or open source license like LGPL
+// Description : header function for motor control
+//==============================================================
 
 #ifndef MOTOR_CONTROL_HPP
 #define MOTOR_CONTROL_HPP

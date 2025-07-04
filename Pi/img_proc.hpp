@@ -1,4 +1,9 @@
-// img_proc.hpp
+// Filename : img_proc.hpp 
+// Authors : Luis Moreno (s3608255), Luca Provenzano (s3487636)
+// Group : 43
+// License : N.A. or open source license like LGPL
+// Description : Header file for image processor
+//==============================================================
 
 #ifndef IMG_PROC_HPP
 #define IMG_PROC_HPP

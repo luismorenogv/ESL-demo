@@ -1,5 +1,9 @@
-// motor_control.cpp
-
+// Filename : motor_control.cpp 
+// Authors : Luis Moreno (s3608255), Luca Provenzano (s3487636)
+// Group : 43
+// License : N.A. or open source license like LGPL
+// Description : motor control file for initial homing and for control thread
+//==============================================================
 #include "motor_control.hpp"
 
 #include <stdio.h>
@@ -19,6 +23,18 @@
 #define HOMING_STALL_THRESHOLD  50
 #define MAX_SAFE_DUTY  ((uint16_t)(0.2 * ((1 << 12) - 1)))
 
+
+/*********************************************
+* @brief Homing function, calculates the initial offset and the step limits of the device
+* 
+* @param [in]       spi_fd SPI communication handle
+* @param [inout]    pitch_offset_out Pitch offset from initial position
+* @param [inout]    yaw_offset_out Yaw offset from initial position
+* @param [out]      pitch_max_steps Pitch counted max steps
+* @param [out]      yaw_max_steps Yaw counted max steps
+* 
+* @return None.
+*********************************************/
 void HomeBothAxes(int spi_fd, int32_t* pitch_offset_out, int32_t* yaw_offset_out,
                                 uint32_t* pitch_max_steps, uint32_t* yaw_max_steps) {
     printf("Homing both axes simultaneously...\n");
@@ -41,6 +57,7 @@ void HomeBothAxes(int spi_fd, int32_t* pitch_offset_out, int32_t* yaw_offset_out
     bool pitch_homed = false;
     bool yaw_homed = false;
 
+    // Two iterations, one for each limit
     for (uint8_t i = 0; i < 2; i++) {
         while (!pitch_homed || !yaw_homed) {
             // Enable only the motors that still need homing
@@ -108,6 +125,18 @@ void HomeBothAxes(int spi_fd, int32_t* pitch_offset_out, int32_t* yaw_offset_out
     SendAllPwmCmd(spi_fd, 0, 0, 0, 0, 0, 0); // Stop motors
 }
 
+
+/*********************************************
+* @brief Control thread loop function
+* 
+* @param [in] spi_fd SPI communication handle
+* @param [in] pitch_offset Pitch offset from initial position in steps
+* @param [in] yaw_offset Yaw offset from initial position in steps
+* @param [in] pitch_max_steps Pitch max steps in full range rotation
+* @param [in] yaw_max_steps Yaw max steps in full range rotation
+* 
+* @return None.
+*********************************************/
 void control_thread_func(int spi_fd, int32_t pitch_offset, int32_t yaw_offset, 
                          uint32_t pitch_max_steps, uint32_t yaw_max_steps) {
     printf("Control thread started.\n");

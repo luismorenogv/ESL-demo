@@ -1,4 +1,9 @@
-//spi_comm.c
+// Filename : spi_comm.c 
+// Authors : Luis Moreno (s3608255), Luca Provenzano (s3487636)
+// Group : 43
+// License : N.A. or open source license like LGPL
+// Description : Spi communication module
+//==============================================================
 #include "spi_comm.h"
 #include <fcntl.h>
 #include <linux/spi/spidev.h>
@@ -17,7 +22,17 @@
 #define CMD_READ_ALL_POSITIONS 0x22
 #define CHECK_PWM_STATUS 0x30
 
-// Low-level helper to perform a generic SPI transaction using ioctl.
+/*********************************************
+* @brief Low-level helper to perform a generic SPI transaction using ioctl.
+* 
+* @param [in]  fd       SPI communication handle
+* @param [in]  speed    SPI communication frequency
+* @param [in]  tx_buf   Buffer to be transmitted
+* @param [out] rx_buf   Buffer to be received
+* @param [out] count    Buffer length
+* 
+* @return error code, err >= 0: no error
+*********************************************/
 static int SpiXfer(int fd, unsigned speed, uint8_t *tx_buf, uint8_t *rx_buf, unsigned count) {
     struct spi_ioc_transfer tr = {
         .tx_buf        = (unsigned long)tx_buf,
@@ -33,6 +48,15 @@ static int SpiXfer(int fd, unsigned speed, uint8_t *tx_buf, uint8_t *rx_buf, uns
     return err;
 }
 
+/*********************************************
+* @brief Opens SPI communication
+* 
+* @param [in] spi_chan SPI channel number
+* @param [in] spi_baud SPI baud rate
+* @param [in] spi_flags SPI flags
+* 
+* @return SPI opened succesfully -> returns SPI handle; -1: error in opening the SPI channel; -2: error in setting up the SPI mode 
+*********************************************/
 int SpiOpen(unsigned spi_chan, unsigned spi_baud, unsigned spi_flags) {
     int fd;
     char dev[32];
@@ -57,10 +81,26 @@ int SpiOpen(unsigned spi_chan, unsigned spi_baud, unsigned spi_flags) {
     return fd;
 }
 
+
+/*********************************************
+* @brief Close SPI communication
+* 
+* @param [in] fd SPI communication handle
+* 
+* @return None.
+*********************************************/
 int SpiClose(int fd) {
     return close(fd);
 }
 
+
+/*********************************************
+* @brief Sends the PWM command over a specific //TODO NOT USED!
+* 
+* @param [in] parameter parameter description
+* 
+* @return None.
+*********************************************/
 int SendPwmCmd(int fd, encoder_t unit, uint16_t duty, uint8_t enable, uint8_t dir) {
     uint8_t tx[3], rx[3];
     uint8_t cmd = (unit == UnitPitch) ? CMD_WRITE_PITCH_PWM : CMD_WRITE_YAW_PWM;
@@ -73,6 +113,20 @@ int SendPwmCmd(int fd, encoder_t unit, uint16_t duty, uint8_t enable, uint8_t di
     return SpiXfer(fd, SPI_SPEED_HZ, tx, rx, 3);
 }
 
+
+/*********************************************
+* @brief Sends the PWM command for pitch and yaw
+* 
+* @param [in] fd            SPI communication handle
+* @param [in] pitch_duty    pitch duty cicle
+* @param [in] pitch_enable  pitch pwm enable bit
+* @param [in] pitch_dir     pitch pwm direction bit
+* @param [in] yaw_duty      yaw duty cicle
+* @param [in] yaw_enable    yaw pwm enable bit
+* @param [in] yaw_dir       yaw pwm direction bit
+* 
+* @return Return value of SpiXfer function
+*********************************************/
 int SendAllPwmCmd(int fd, uint16_t pitch_duty, uint8_t pitch_enable, uint8_t pitch_dir,
                   uint16_t yaw_duty, uint8_t yaw_enable, uint8_t yaw_dir) {
     uint8_t tx[5], rx[5];
@@ -90,6 +144,17 @@ int SendAllPwmCmd(int fd, uint16_t pitch_duty, uint8_t pitch_enable, uint8_t pit
     return SpiXfer(fd, SPI_SPEED_HZ, tx, rx, 5);
 }
 
+
+/*********************************************
+* @brief Reads from SPI the device position in steps
+* 
+* @param [in] fd SPI communication channel
+* @param [in] unit determines the unit read (Yaw, Pitch, both)
+* @param [out] pitch_pos pitch steps position
+* @param [out] yaw_pos yaw steps position
+* 
+* @return 0: Position read succesfully; < 0: returns code error
+*********************************************/
 int ReadPositionCmd(int fd, encoder_t unit, int32_t *pitch_pos, int32_t *yaw_pos) {
     // Ternary operator to set up single-axis or dual-axis read.
     int32_t *out_pos = (unit == UnitPitch) ? pitch_pos : (unit == UnitYaw) ? yaw_pos : NULL;
@@ -117,6 +182,7 @@ int ReadPositionCmd(int fd, encoder_t unit, int32_t *pitch_pos, int32_t *yaw_pos
     return 0;
 }
 
+//TODO NOT USED!
 int CheckPwmStatus(int fd, PwmStatus *pitch_status, PwmStatus *yaw_status) {
     uint8_t tx[5] = { CHECK_PWM_STATUS }, rx[5] = {0};
     int err = SpiXfer(fd, SPI_SPEED_HZ, tx, rx, 5);

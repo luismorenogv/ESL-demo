@@ -1,3 +1,10 @@
+// Filename : img_proc.cpp 
+// Authors : Luis Moreno (s3608255), Luca Provenzano (s3487636)
+// Group : 43
+// License : N.A. or open source license like LGPL
+// Description : Manages the gstreamer pipeline, operates OpenCV and the camera output
+//==============================================================
+
 #include "img_proc.hpp"
 #include <stdio.h>
 #include <math.h>
@@ -15,6 +22,14 @@ std::atomic<bool> g_run(true);
 TargetData g_target_data;
 std::mutex g_target_mutex;
 
+
+/*********************************************
+* @brief Vision thread loop function
+* 
+* @param [inout] sink sink element of the pipeline
+* 
+* @return None.
+*********************************************/
 void vision_thread_func(GstElement *sink) {
     printf("Vision thread started.\n");
     
@@ -38,7 +53,15 @@ void vision_thread_func(GstElement *sink) {
     printf("Vision thread finished.\n");
 }
 
-
+/*********************************************
+* @brief Gstreamer Pipeline initilizer
+* 
+* @param [in] device_path path to the camera
+* @param [out] pipeline_out address to return the pipeline
+* @param [out] appsink_out address to return the appsink
+* 
+* @return 0: init succesful; -1: init failed
+*********************************************/
 int InitGstreamerPipeline(const char* device_path, GstElement** pipeline_out, GstElement** appsink_out) {
     // Initialize GStreamer library
     gst_init(NULL, NULL);
@@ -88,13 +111,31 @@ int InitGstreamerPipeline(const char* device_path, GstElement** pipeline_out, Gs
 }
 
 
+/*********************************************
+* @brief Cleans the Gstreamer Pipeline before closure
+* 
+* @param [inout] pipeline pipeline to be closed
+* 
+* @return None.
+*********************************************/
 void CleanupGstreamerPipeline(GstElement* pipeline) {
     gst_element_set_state(pipeline, GST_STATE_NULL);
     gst_object_unref(pipeline);
 }
 
 
-// Function to compute angular position from image center in radians
+/*********************************************
+* @brief Function to compute angular position from image center in radians
+* 
+* @param [in]   x_actual        X coordinate read from the camera
+* @param [in]   y_actual        Y coordinate read from the camera
+* @param [in]   width           Camera width in pixels
+* @param [in]   height          Camera height in pixels
+* @param [out]  x_offset_rad    Objects distance on x in radiants from center of camera
+* @param [out]  y_offset_rad    Objects distance on y in radiants from center of camera
+* 
+* @return None.
+*********************************************/
 void ComputeAngles(int x_actual, int y_actual, int width, int height, double& x_offset_rad, double& y_offset_rad) {
 
     // Compute offset from center
@@ -110,6 +151,17 @@ void ComputeAngles(int x_actual, int y_actual, int width, int height, double& x_
     y_offset_rad = y_offset * rad_per_px_y;
 }
 
+
+/*********************************************
+* @brief Pulls a frame (if available), process it with openCV
+* 
+* @param [in]   appsink         Sink from which it takes the frame
+* @param [out]  x_offset_rad    Objects distance on x in radiants from center of camera
+* @param [out]  y_offset_rad    Objects distance on y in radiants from center of camera
+* @param [out]  obj_size        Objects size
+* 
+* @return false: processing failed OR no new sample available; true: processing succesful
+*********************************************/
 bool ProcessOneFrame(GstElement* appsink, double& x_offset_rad, double& y_offset_rad, double& obj_size) {
     // Try to get a new video frame from the GStreamer pipeline. Non-blocking.
     GstSample* sample = gst_app_sink_try_pull_sample(GST_APP_SINK(appsink), 0);

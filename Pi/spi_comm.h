@@ -1,5 +1,9 @@
-//spi_comm.h
-
+// Filename : spi_comm.h 
+// Authors : Luis Moreno (s3608255), Luca Provenzano (s3487636)
+// Group : 43
+// License : N.A. or open source license like LGPL
+// Description : header file for SPI communication module
+//==============================================================
 
 #ifndef SPI_COMM_H
 #define SPI_COMM_H

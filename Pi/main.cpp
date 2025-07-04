@@ -11,19 +11,38 @@
 #include "img_proc.hpp"
 #include "motor_control.hpp"
 
-// Signal handler to stop the threads gracefully
+/*********************************************
+* @brief Signal handler to stop the threads gracefully
+* 
+* @param [in] signum Signal used for stopping the threads
+* 
+* @return None.
+*********************************************/
 void signal_handler(int signum) {
     printf("\nInterrupt signal (%d) received. Shutting down.\n", signum);
     g_run = false;
 }
 
-// Error function specific to main setup
+/*********************************************
+* @brief Error function specific to main setup
+* 
+* @param [in] msg       message to be printed
+* @param [in] e_code    error code
+* @param [in] fd        SPI communication handle
+* 
+* @return error code
+*********************************************/
 int error(const char *msg, const int e_code, int fd) {
     fprintf(stderr, "Error %i: %s\n", e_code, msg);
     if (fd >= 0) SpiClose(fd);
     return e_code;
 }
 
+/*********************************************
+* @brief Main function, starts up the threads and closes them at finish
+* 
+* @return 0: program closed; 1: device path not set; -1: Gstreamer pipeline initialization failed
+*********************************************/
 int main(int argc, char *argv[]) {
     // Register signal handler for Ctrl+C
     signal(SIGINT, signal_handler);
