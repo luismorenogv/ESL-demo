@@ -17,7 +17,7 @@
 #include "img_proc.hpp" // Shared data: g_run, g_target_data, g_target_mutex
 
 // Constants for control loop
-#define LOOP_HZ         20000 // 20kHz control loop
+#define LOOP_HZ         10000 // 10kHz control loop
 #define PERIOD_NS       (1000000000L / LOOP_HZ)
 #define ENCODER_ERROR_TOLERANCE  2
 #define HOMING_STALL_THRESHOLD  50
